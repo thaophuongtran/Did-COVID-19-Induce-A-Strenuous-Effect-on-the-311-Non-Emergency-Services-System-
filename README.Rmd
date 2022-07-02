@@ -1,4 +1,5 @@
 ---
+title: "Did COVID-19 Induce A Strenuous Effect on the 311 Non-Emergency Services System?"
 output: github_document
 ---
 
@@ -13,8 +14,16 @@ library(hrbrthemes)
 library(viridis)
 library(ggpattern)
 
-#load data 
+#load 311 data 
 load("kcmo2019_2020.rdata")
+
+#load 911 data
+dat911 = read.csv("kcmo 911 volume - data.csv")
+ 
+#covid cases by zipcode as of january 15, 2022
+zip_covid = read.csv("COVID-19_Data_by_ZIP_Code.csv") 
+zip_covid = zip_covid %>% dplyr::select(ZipCode,Cases,Total.Residents.Tested) %>% mutate(ZIP = ZipCode,rate = Cases/Total.Residents.Tested ) %>% dplyr::select(ZIP, rate)
+
 ```
 
 
@@ -125,7 +134,84 @@ dat %>%
        )+
   theme_bw()
 ```
+```{r rep_cat, warning=FALSE, message = FALSE,fig.height = 3,fig.width=8}
+# plot response time by categories
+dat %>% 
+  filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  filter(CREATEMO %in% 3:8) %>%
+  filter(allcovid==0) %>%
+  left_join(diff)%>%
+  mutate(CREATEYR = as.factor(CREATEYR))%>%
+  ggplot(aes(x = CREATEYR, y = DAYTOCLOSE, fill = CREATEYR))+
+  geom_boxplot(outlier.shape = NA,show.legend = FALSE)+
+  facet_wrap(~reorder(CATEGORY,-diff_pchg), ncol = 5)+
+  scale_fill_manual(values = c("dodgerblue4","green3"))+
+  ylim(c(0,80))+
+  labs(x = "",
+       y = "Reponse Time",
+       fill = "Year",
+       pattern = "Covid-Related"
+       )+
+  theme_bw()
+```
 
+Zip Code Variation 
+
+```{r zipdata}
+# yoy change in days to close
+zip_dtc = dat %>% 
+  filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  filter(CREATEMO %in% 3:8) %>%
+  group_by(CREATEYR,CATEGORY, ZIP) %>%
+  summarize(daytoclose = mean(DAYTOCLOSE,na.rm=T)) %>%
+  dcast(CATEGORY + ZIP ~ CREATEYR) %>% 
+  mutate(daytoclose_diff = `2020`-`2019`)%>% rename(daytoclose_2020 = `2020`,daytoclose_2019=`2019`)
+
+# yoy change in volume
+zip_n = dat %>% 
+  filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  filter(CREATEMO %in% 3:8) %>%
+  group_by(CREATEYR,CATEGORY, ZIP) %>%
+  summarize(n = n()) %>%
+  dcast(CATEGORY + ZIP ~ CREATEYR) %>% 
+  mutate(n_diff = `2020`-`2019`)  %>% rename(n_2020 = `2020`,n_2019=`2019`)
+
+#merge data 
+zip = zip_dtc %>% left_join(zip_n) %>%
+  left_join(zip_covid)
+  
+```
+```{r zip_vol, fig.height = 3,fig.width=8}
+#scatterplot
+zip %>% 
+  ggplot(aes(y = n_diff, x = rate, size = n_2019, col = ZIP))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  facet_wrap(~CATEGORY, scale = "free_y")+
+  theme_bw()+
+  theme(legend.position = "none")
+```
+```{r zip_dtc, fig.height = 3,fig.width=8}
+#scatterplot
+zip %>% 
+  ggplot(aes(y = daytoclose_diff, x = rate, size = daytoclose_2019, col = ZIP))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  facet_wrap(~CATEGORY, scale = "free_y")+
+  theme_bw()+
+  theme(legend.position = "none")
+```
+
+```{r zip_dtc, fig.height = 3,fig.width=8}
+#scatterplot
+zip %>% 
+  ggplot(aes(y = daytoclose_diff, x = n_diff, size = n_2019, col = ZIP))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  facet_wrap(~CATEGORY, scale = "free")+
+  theme_bw()+
+  theme(legend.position = "none")
+```
 
 
 Discussion 
@@ -154,13 +240,48 @@ dat %>%
 ```
 
 911 trends 
-```{r 911}
-dat911 = read.csv("kcmo 911 volume - data.csv")
-  
+```{r vol911}
+
+dat911 %>% 
+  filter(month %in% 3:8) %>%
+  mutate(year = as.factor(year)) %>%
+  select(year, month, 
+         kcmo_fire_vol,kcmo_fire_vol_911,kcmo_fire_vol_nonemergency,
+         kcmo_pd_vol,kcmo_pd_vol_911,kcmo_pd_vol_nonemergency) %>%
+  melt(id.vars=c("year","month")) %>%
+  ggplot(aes(x = year, y = value, group = year, fill = year)) + 
+  geom_boxplot(show.legend=FALSE)+
+  facet_wrap(~variable,scale="free_y")+
+  scale_fill_manual(values = c("dodgerblue4","green3"))+
+  #scale_x_continuous(breaks = 3:8)+
+  scale_y_continuous(labels =scales::comma)+
+  labs(y = "911 Volume",
+       x = "Month",
+       fill = "Year"
+       )+
+  theme_bw()
 ```
 
 
+```{r ringtime911}
 
+dat911 %>% 
+  filter(month %in% 3:8) %>%
+  mutate(year = as.factor(year)) %>%
+  select(year, month, 
+         kcmo_fire_pct_answered_15s,kcmo_fire_pct_answered_20s,kcmo_fire_pct_answered_40s,
+         kcmo_pd_pct_answered_15s,kcmo_pd_pct_answered_20s,kcmo_pd_pct_answered_40s) %>%
+  melt(id.vars=c("year","month")) %>%
+  ggplot(aes(x = year, y = value, group = year, fill = year)) + 
+  geom_boxplot(show.legend=FALSE)+
+  facet_wrap(~variable,scale="free_y")+
+  scale_fill_manual(values = c("dodgerblue4","green3"))+
+  labs(y = "911 Ringtime Range",
+       x = "",
+       fill = "Year"
+       )+
+  theme_bw()
+```
 
 
 

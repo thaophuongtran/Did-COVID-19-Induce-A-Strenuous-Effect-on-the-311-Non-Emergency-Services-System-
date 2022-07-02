@@ -1,3 +1,6 @@
+Did COVID-19 Induce A Strenuous Effect on the 311 Non-Emergency Services
+System?
+================
 
 ``` r
 #load library
@@ -10,8 +13,11 @@ library(hrbrthemes)
 library(viridis)
 library(ggpattern)
 
-#load data 
+#load 311 data 
 load("kcmo2019_2020.rdata")
+
+#load 911 data
+dat911 = read.csv("kcmo 911 volume - data.csv")
 ```
 
 ``` r
@@ -121,6 +127,29 @@ dat %>%
 
 ![](README_files/figure-gfm/vol_cat-1.png)<!-- -->
 
+``` r
+# plot response time by categories
+dat %>% 
+  filter(CATEGORY != "Data Not Available") %>%
+  filter(CREATEMO %in% 3:8) %>%
+  filter(allcovid==0) %>%
+  left_join(diff)%>%
+  mutate(CREATEYR = as.factor(CREATEYR))%>%
+  ggplot(aes(x = CREATEYR, y = DAYTOCLOSE, fill = CREATEYR))+
+  geom_boxplot(outlier.shape = NA)+
+  facet_wrap(~reorder(CATEGORY,-diff_pchg), scale = "free_y", ncol = 5)+
+  scale_fill_manual(values = c("dodgerblue4","green3"))+
+  
+  labs(x = "Reponse Time",
+       y = "Category",
+       fill = "Year",
+       pattern = "Covid-Related"
+       )+
+  theme_bw()
+```
+
+![](README_files/figure-gfm/rep_cat-1.png)<!-- -->
+
 Discussion
 
 Categories vs Departments
@@ -149,3 +178,49 @@ dat %>%
     ## Joining, by = "CATEGORY"
 
 ![](README_files/figure-gfm/cate_dept-1.png)<!-- -->
+
+911 trends
+
+``` r
+dat911 %>% 
+  filter(month %in% 3:8) %>%
+  mutate(year = as.factor(year)) %>%
+  select(year, month, 
+         kcmo_fire_vol,kcmo_fire_vol_911,kcmo_fire_vol_nonemergency,
+         kcmo_pd_vol,kcmo_pd_vol_911,kcmo_pd_vol_nonemergency) %>%
+  melt(id.vars=c("year","month")) %>%
+  ggplot(aes(x = year, y = value, group = year, fill = year)) + 
+  geom_boxplot(show.legend=FALSE)+
+  facet_wrap(~variable,scale="free_y")+
+  scale_fill_manual(values = c("dodgerblue4","green3"))+
+  #scale_x_continuous(breaks = 3:8)+
+  scale_y_continuous(labels =scales::comma)+
+  labs(y = "911 Volume",
+       x = "Month",
+       fill = "Year"
+       )+
+  theme_bw()
+```
+
+![](README_files/figure-gfm/vol911-1.png)<!-- -->
+
+``` r
+dat911 %>% 
+  filter(month %in% 3:8) %>%
+  mutate(year = as.factor(year)) %>%
+  select(year, month, 
+         kcmo_fire_pct_answered_15s,kcmo_fire_pct_answered_20s,kcmo_fire_pct_answered_40s,
+         kcmo_pd_pct_answered_15s,kcmo_pd_pct_answered_20s,kcmo_pd_pct_answered_40s) %>%
+  melt(id.vars=c("year","month")) %>%
+  ggplot(aes(x = year, y = value, group = year, fill = year)) + 
+  geom_boxplot(show.legend=FALSE)+
+  facet_wrap(~variable,scale="free_y")+
+  scale_fill_manual(values = c("dodgerblue4","green3"))+
+  labs(y = "911 Ringtime Range",
+       x = "",
+       fill = "Year"
+       )+
+  theme_bw()
+```
+
+![](README_files/figure-gfm/ringtime911-1.png)<!-- -->
