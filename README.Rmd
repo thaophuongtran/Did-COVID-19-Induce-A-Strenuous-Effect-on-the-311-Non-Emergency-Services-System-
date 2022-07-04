@@ -13,6 +13,10 @@ library(ggplot2)
 library(hrbrthemes)
 library(viridis)
 library(ggpattern)
+library(plm)
+library(haven)
+library(texreg)
+library(lfe)
 
 #load 311 data 
 load("kcmo2019_2020.rdata")
@@ -144,7 +148,7 @@ dat %>%
   mutate(CREATEYR = as.factor(CREATEYR))%>%
   ggplot(aes(x = CREATEYR, y = DAYTOCLOSE, fill = CREATEYR))+
   geom_boxplot(outlier.shape = NA,show.legend = FALSE)+
-  facet_wrap(~reorder(CATEGORY,-diff_pchg), ncol = 5)+
+  facet_wrap(~reorder(CATEGORY,-diff_pchg), ncol = 3,scale="free")+
   scale_fill_manual(values = c("dodgerblue4","green3"))+
   ylim(c(0,80))+
   labs(x = "",
@@ -174,25 +178,31 @@ zip_n = dat %>%
   group_by(CREATEYR,CATEGORY, ZIP) %>%
   summarize(n = n()) %>%
   dcast(CATEGORY + ZIP ~ CREATEYR) %>% 
-  mutate(n_diff = `2020`-`2019`)  %>% rename(n_2020 = `2020`,n_2019=`2019`)
+  mutate(n_diff = `2020`-`2019`,
+         n_pchg = (`2020` / `2019`-1)*100)  %>% rename(n_2020 = `2020`,n_2019=`2019`)
 
 #merge data 
 zip = zip_dtc %>% left_join(zip_n) %>%
   left_join(zip_covid)
   
 ```
+
+
+
 ```{r zip_vol, fig.height = 3,fig.width=8}
-#scatterplot
-zip %>% 
-  ggplot(aes(y = n_diff, x = rate, size = n_2019, col = ZIP))+
-  geom_point()+
-  geom_smooth(method=lm)+
-  facet_wrap(~CATEGORY, scale = "free_y")+
-  theme_bw()+
-  theme(legend.position = "none")
+# #scatterplot
+# zip %>% 
+#   ggplot(aes(y = n_diff, x = rate, size = n_2019, col = ZIP))+
+#   geom_point()+
+#   geom_smooth(method=lm)+
+#   facet_wrap(~CATEGORY, scale = "free_y")+
+#   theme_bw()+
+#   theme(legend.position = "none")
 ```
+
+
 ```{r zip_dtc, fig.height = 3,fig.width=8}
-#scatterplot
+#scatter plot
 zip %>% 
   ggplot(aes(y = daytoclose_diff, x = rate, size = daytoclose_2019, col = ZIP))+
   geom_point()+
@@ -202,16 +212,423 @@ zip %>%
   theme(legend.position = "none")
 ```
 
-```{r zip_dtc, fig.height = 3,fig.width=8}
-#scatterplot
-zip %>% 
-  ggplot(aes(y = daytoclose_diff, x = n_diff, size = n_2019, col = ZIP))+
-  geom_point()+
-  geom_smooth(method=lm)+
-  facet_wrap(~CATEGORY, scale = "free")+
-  theme_bw()+
-  theme(legend.position = "none")
+```{r zip_dtc2, fig.height = 3,fig.width=8}
+# #scatterplot
+# zip %>% 
+#   ggplot(aes(y = daytoclose_diff, x = n_diff, size = n_2019, col = ZIP))+
+#   geom_point()+
+#   geom_smooth(method=lm)+
+#   facet_wrap(~CATEGORY, scale = "free")+
+#   theme_bw()+
+#   theme(legend.position = "none")
 ```
+
+```{r}
+# covid related request by zip code 
+zip_covid_311 = dat %>% group_by(ZIP) %>% 
+  summarise(n_allcovid = sum(allcovid))
+
+# create data for request level reg
+dat_reg = dat %>% 
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311) %>% 
+  mutate(after = as.numeric(season == "COVID-warm"),
+         rate = rate*100) %>% 
+  filter(allcovid==0) %>% 
+  mutate(did = rate*after,
+         did2 = n_allcovid*after)
+
+```
+
+
+```{r tab1}
+#ols 
+reg_ols = (lm(data= dat_reg, DAYTOCLOSE~did + rate + after))
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg,DAYTOCLOSE~did|rate+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = dat_reg,DAYTOCLOSE~did|rate+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|rate|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+
+```{r tab2}
+#ols 
+reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Public Health",], DAYTOCLOSE~did + rate + after))
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Health",],DAYTOCLOSE~did|rate+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Health",],DAYTOCLOSE~did|rate+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|rate|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+```{r tab3}
+#ols 
+reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Public Safety",], DAYTOCLOSE~did + rate + after))
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Safety",],DAYTOCLOSE~did|rate+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Safety",],DAYTOCLOSE~did|rate+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|rate|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+```{r tab4}
+#ols 
+reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Parks & Recreation",], DAYTOCLOSE~did + rate + after))
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg[dat_reg$CATEGORY == "Parks & Recreation",],DAYTOCLOSE~did|rate+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = dat_reg[dat_reg$CATEGORY == "Parks & Recreation",],DAYTOCLOSE~did|rate+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|rate|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+
+```{r tab1a}
+#ols 
+reg_ols = (lm(data= dat_reg, DAYTOCLOSE~did2 + n_allcovid + after))
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg,DAYTOCLOSE~did2|n_allcovid+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = dat_reg,DAYTOCLOSE~did2|n_allcovid+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|n_allcovid|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+
+```{r tab2a}
+#ols 
+reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Public Health",], DAYTOCLOSE~did2 + n_allcovid + after))
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Health",],DAYTOCLOSE~did2|n_allcovid+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Health",],DAYTOCLOSE~did2|n_allcovid+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|n_allcovid|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+```{r tab3a}
+#ols 
+reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Public Safety",], DAYTOCLOSE~did2 + n_allcovid + after))
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Safety",],DAYTOCLOSE~did2|n_allcovid+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Safety",],DAYTOCLOSE~did2|n_allcovid+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|n_allcovid|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+```{r tab4a}
+#ols 
+reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Parks & Recreation",], DAYTOCLOSE~did2 + n_allcovid + after))
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg[dat_reg$CATEGORY == "Parks & Recreation",], DAYTOCLOSE~did2|n_allcovid + after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = dat_reg[dat_reg$CATEGORY == "Parks & Recreation",], DAYTOCLOSE~did2|n_allcovid + factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|n_allcovid|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+```{r tab5}
+zip_reg = dat %>% 
+  mutate(after = as.numeric(season == "COVID-warm")) %>% 
+  filter(allcovid==0) %>% 
+  #filter(CATEGORY == "Public Health") %>%
+  group_by(date, ZIP, after) %>%
+  summarise(DAYTOCLOSE = mean(DAYTOCLOSE,na.rm=T)) %>% 
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311) %>%
+  mutate(rate = rate*100,
+         did = rate*after,
+         did2 = n_allcovid*after)
+
+#ols 
+reg_ols = (lm(data= zip_reg, DAYTOCLOSE~did + rate + after))
+#fe: rate + after
+reg_fe_a = (felm(data = zip_reg,DAYTOCLOSE~did|rate+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = zip_reg,DAYTOCLOSE~did|rate+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|rate|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+```{r tab6}
+zip_reg = dat %>% 
+  mutate(after = as.numeric(season == "COVID-warm")) %>% 
+  filter(allcovid==0) %>% 
+  filter(CATEGORY == "Public Health") %>%
+  group_by(date, ZIP, after) %>%
+  summarise(DAYTOCLOSE = mean(DAYTOCLOSE,na.rm=T)) %>% 
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311) %>%
+  mutate(rate = rate*100,
+         did = rate*after,
+         did2 = n_allcovid*after)
+
+#ols 
+reg_ols = (lm(data= zip_reg, DAYTOCLOSE~did + rate + after))
+#fe: rate + after
+reg_fe_a = (felm(data = zip_reg,DAYTOCLOSE~did|rate+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = zip_reg,DAYTOCLOSE~did|rate+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|rate|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+```{r tab7}
+zip_reg = dat %>% 
+  mutate(after = as.numeric(season == "COVID-warm")) %>% 
+  filter(allcovid==0) %>% 
+  filter(CATEGORY == "Public Safety") %>%
+  group_by(date, ZIP, after) %>%
+  summarise(DAYTOCLOSE = mean(DAYTOCLOSE,na.rm=T)) %>% 
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311) %>%
+  mutate(rate = rate*100,
+         did = rate*after,
+         did2 = n_allcovid*after)
+
+#ols 
+reg_ols = (lm(data= zip_reg, DAYTOCLOSE~did + rate + after))
+#fe: rate + after
+reg_fe_a = (felm(data = zip_reg,DAYTOCLOSE~did|rate+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = zip_reg,DAYTOCLOSE~did|rate+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|rate|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+```{r tab8}
+zip_reg = dat %>% 
+  mutate(after = as.numeric(season == "COVID-warm")) %>% 
+  filter(allcovid==0) %>% 
+  filter(CATEGORY == "Parks & Recreation") %>%
+  group_by(date, ZIP, after) %>%
+  summarise(DAYTOCLOSE = mean(DAYTOCLOSE,na.rm=T)) %>% 
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311) %>%
+  mutate(rate = rate*100,
+         did = rate*after,
+         did2 = n_allcovid*after)
+
+#ols 
+reg_ols = (lm(data= zip_reg, DAYTOCLOSE~did + rate + after))
+#fe: rate + after
+reg_fe_a = (felm(data = zip_reg,DAYTOCLOSE~did|rate+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = zip_reg,DAYTOCLOSE~did|rate+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|rate|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+```{r tab5a}
+zip_reg = dat %>% 
+  mutate(after = as.numeric(season == "COVID-warm")) %>% 
+  filter(allcovid==0) %>% 
+  #filter(CATEGORY == "Public Health") %>%
+  group_by(date, ZIP, after) %>%
+  summarise(DAYTOCLOSE = mean(DAYTOCLOSE,na.rm=T)) %>% 
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311) %>%
+  mutate(rate = rate*100,
+         did = rate*after,
+         did2 = n_allcovid*after)
+
+#ols 
+reg_ols = (lm(data= zip_reg, DAYTOCLOSE~did2 + n_allcovid + after))
+#fe: rate + after
+reg_fe_a = (felm(data = zip_reg,DAYTOCLOSE~did2|n_allcovid+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = zip_reg,DAYTOCLOSE~did2|n_allcovid+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|n_allcovid|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+```{r tab6a}
+zip_reg = dat %>% 
+  mutate(after = as.numeric(season == "COVID-warm")) %>% 
+  filter(allcovid==0) %>% 
+  filter(CATEGORY == "Public Health") %>%
+  group_by(date, ZIP, after) %>%
+  summarise(DAYTOCLOSE = mean(DAYTOCLOSE,na.rm=T)) %>% 
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311) %>%
+  mutate(rate = rate*100,
+         did = rate*after,
+         did2 = n_allcovid*after)
+
+#ols 
+reg_ols = (lm(data= zip_reg, DAYTOCLOSE~did2 + n_allcovid + after))
+#fe: rate + after
+reg_fe_a = (felm(data = zip_reg,DAYTOCLOSE~did2|n_allcovid+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = zip_reg,DAYTOCLOSE~did2|n_allcovid+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|n_allcovid|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+```{r tab7a}
+zip_reg = dat %>% 
+  mutate(after = as.numeric(season == "COVID-warm")) %>% 
+  filter(allcovid==0) %>% 
+  filter(CATEGORY == "Public Safety") %>%
+  group_by(date, ZIP, after) %>%
+  summarise(DAYTOCLOSE = mean(DAYTOCLOSE,na.rm=T)) %>% 
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311) %>%
+  mutate(rate = rate*100,
+         did = rate*after,
+         did2 = n_allcovid*after)
+
+#ols 
+reg_ols = (lm(data= zip_reg, DAYTOCLOSE~did2 + n_allcovid + after))
+#fe: rate + after
+reg_fe_a = (felm(data = zip_reg,DAYTOCLOSE~did2|n_allcovid+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = zip_reg,DAYTOCLOSE~did2|n_allcovid+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|n_allcovid|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+```{r tab8a}
+zip_reg = dat %>% 
+  mutate(after = as.numeric(season == "COVID-warm")) %>% 
+  filter(allcovid==0) %>% 
+  filter(CATEGORY == "Parks & Recreation") %>%
+  group_by(date, ZIP, after) %>%
+  summarise(DAYTOCLOSE = mean(DAYTOCLOSE,na.rm=T)) %>% 
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311) %>%
+  mutate(rate = rate*100,
+         did = rate*after,
+         did2 = n_allcovid*after)
+
+#ols 
+reg_ols = (lm(data= zip_reg, DAYTOCLOSE~did2 + n_allcovid + after))
+#fe: rate + after
+reg_fe_a = (felm(data = zip_reg,DAYTOCLOSE~did2|n_allcovid+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = zip_reg,DAYTOCLOSE~did2|n_allcovid+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
+          omit.coef = "after|n_allcovid|Intercept", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
+          custom.coef.names = "DiD effect"
+          )
+
+```
+
+
+
+
+
+
 
 
 Discussion 
