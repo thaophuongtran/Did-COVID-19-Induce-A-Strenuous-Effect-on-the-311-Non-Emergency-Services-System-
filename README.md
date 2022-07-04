@@ -219,6 +219,7 @@ zip %>%
   geom_point()+
   geom_smooth(method=lm)+
   facet_wrap(~CATEGORY, scale = "free_y")+
+  labs(y = "Change in Response Time",x = "COVID-19 infection rate")+
   theme_bw()+
   theme(legend.position = "none")
 ```
@@ -908,6 +909,25 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
     ## Num. groups: factor(date)                              18         
     ## ==================================================================
     ## *** p < 0.001; ** p < 0.01; * p < 0.05
+
+``` r
+zip_covid %>% left_join(zip_covid_311) %>%
+  ggplot(aes(x = rate, y = n_allcovid))+ 
+  geom_point()+
+  geom_smooth(method=lm)+
+  labs(x= "COVID-19 infection rate", y="Volume of covid-related requests")+
+  theme_bw()
+```
+
+    ## Joining, by = "ZIP"
+
+    ## `geom_smooth()` using formula 'y ~ x'
+
+    ## Warning: Removed 1 rows containing non-finite values (stat_smooth).
+
+    ## Warning: Removed 1 rows containing missing values (geom_point).
+
+![](README_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
 Discussion
 
