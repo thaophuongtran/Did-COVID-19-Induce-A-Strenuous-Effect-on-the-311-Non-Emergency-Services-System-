@@ -143,23 +143,20 @@ dat %>%
 # plot response time by categories
 dat %>% 
   filter(CATEGORY != "Data Not Available") %>%
-  #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
   filter(CREATEMO %in% 3:8) %>%
   filter(allcovid==0) %>%
   left_join(diff)%>%
   mutate(CREATEYR = as.factor(CREATEYR))%>%
   group_by(CREATEYR, CATEGORY,diff_pchg) %>% summarize(DAYTOCLOSE = mean(DAYTOCLOSE)) %>% 
-  ggplot(aes(x = CREATEYR, y = DAYTOCLOSE, fill = CREATEYR))+
-  geom_col(#outlier.shape = NA,
-               show.legend = FALSE)+
-  facet_wrap(~reorder(CATEGORY,-diff_pchg), ncol = 5,scale="free")+
-  scale_fill_manual(values = c("dodgerblue4","green3"))+
-  #ylim(c(0,80))+
-  labs(x = "",
-       y = "Average Reponse Time",
-       fill = "Year",
-       pattern = "Covid-Related"
-       )+
+  dcast(CATEGORY+diff_pchg~CREATEYR) %>% mutate(
+    dtc_chg = `2020`-`2019`
+  ) %>%
+  ggplot(aes(x = dtc_chg, y = reorder(CATEGORY,diff_pchg), fill = diff_pchg))+
+  geom_col(show.legend = FALSE)+
+  xlim(c(-10,25))+
+  labs(x = "Change in Average Response Time",
+       y = "",
+  )+
   theme_bw()
 ```
 
@@ -170,7 +167,7 @@ Zip Code Variation
 ``` r
 # yoy change in days to close
 zip_dtc = dat %>% 
-  filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
   filter(CREATEMO %in% 3:8) %>%
   group_by(CREATEYR,CATEGORY, ZIP) %>%
   summarize(daytoclose = mean(DAYTOCLOSE,na.rm=T)) %>%
@@ -185,7 +182,7 @@ zip_dtc = dat %>%
 ``` r
 # yoy change in volume
 zip_n = dat %>% 
-  filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
   filter(CREATEMO %in% 3:8) %>%
   group_by(CREATEYR,CATEGORY, ZIP) %>%
   summarize(n = n()) %>%
@@ -224,21 +221,89 @@ zip_choropleth(zip_covid %>% mutate(region = as.character(ZIP), value = rate*100
 
 ![](README_files/figure-gfm/zip_choropleth-1.png)<!-- -->
 
+Influx of covid-related requests due to COVID-19
+
 ``` r
-# #scatterplot
-# zip %>% 
-#   ggplot(aes(y = n_diff, x = rate, size = n_2019, col = ZIP))+
-#   geom_point()+
-#   geom_smooth(method=lm)+
-#   facet_wrap(~CATEGORY, scale = "free_y")+
-#   theme_bw()+
-#   theme(legend.position = "none")
+# covid related request by zip code 
+zip_covid_311 = dat %>% group_by(ZIP) %>% 
+  summarise(
+    n = n(),
+    n_allcovid = sum(allcovid))
+
+#scatter plot
+zip_covid %>% left_join(zip_covid_311) %>%
+  ggplot(aes(x = rate*100, y = n_allcovid, size = n, col = n))+ 
+  geom_point()+
+  geom_smooth(method=lm)+
+  labs(x= "COVID-19 infection rate", y="Volume of covid-related requests")+
+  theme_bw()+
+  theme(legend.position = "none")
 ```
+
+    ## Joining, by = "ZIP"
+
+    ## `geom_smooth()` using formula 'y ~ x'
+
+    ## Warning: Removed 1 rows containing non-finite values (stat_smooth).
+
+    ## Warning: Removed 1 rows containing missing values (geom_point).
+
+![](README_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
+``` r
+#reg
+summary(lm(rate*100 ~ n_allcovid, 
+           data = zip_covid %>% left_join(zip_covid_311)))
+```
+
+    ## Joining, by = "ZIP"
+
+    ## 
+    ## Call:
+    ## lm(formula = rate * 100 ~ n_allcovid, data = zip_covid %>% left_join(zip_covid_311))
+    ## 
+    ## Residuals:
+    ##     Min      1Q  Median      3Q     Max 
+    ## -4.3411 -1.1752 -0.1172  0.8321  7.5930 
+    ## 
+    ## Coefficients:
+    ##              Estimate Std. Error t value Pr(>|t|)    
+    ## (Intercept)  8.661138   0.496996  17.427   <2e-16 ***
+    ## n_allcovid  -0.009069   0.007075  -1.282    0.206    
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## Residual standard error: 2.384 on 47 degrees of freedom
+    ##   (1 observation deleted due to missingness)
+    ## Multiple R-squared:  0.03378,    Adjusted R-squared:  0.01322 
+    ## F-statistic: 1.643 on 1 and 47 DF,  p-value: 0.2062
+
+``` r
+#scatterplot
+zip %>%
+  ggplot(aes(y = n_diff, x = rate, size = n_2019, col = ZIP))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  facet_wrap(~CATEGORY, scale = "free_y")+
+  theme_bw()+
+  theme(legend.position = "none")
+```
+
+    ## `geom_smooth()` using formula 'y ~ x'
+
+    ## Warning: Removed 77 rows containing non-finite values (stat_smooth).
+
+    ## Warning: Removed 77 rows containing missing values (geom_point).
+
+![](README_files/figure-gfm/zip_vol-1.png)<!-- -->
+
+Delay in response time for non-covid related requests
 
 ``` r
 #scatter plot
 zip %>% 
-  ggplot(aes(y = daytoclose_diff, x = rate, size = daytoclose_2019, col = ZIP))+
+  #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  ggplot(aes(y = daytoclose_diff, x = rate*100, size = daytoclose_2019, col = ZIP))+
   geom_point()+
   geom_smooth(method=lm)+
   facet_wrap(~CATEGORY, scale = "free_y")+
@@ -249,15 +314,16 @@ zip %>%
 
     ## `geom_smooth()` using formula 'y ~ x'
 
-    ## Warning: Removed 21 rows containing non-finite values (stat_smooth).
+    ## Warning: Removed 77 rows containing non-finite values (stat_smooth).
 
-    ## Warning: Removed 21 rows containing missing values (geom_point).
+    ## Warning: Removed 77 rows containing missing values (geom_point).
 
 ![](README_files/figure-gfm/zip_dtc-1.png)<!-- -->
 
 ``` r
 # #scatterplot
 # zip %>% 
+#   filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
 #   ggplot(aes(y = daytoclose_diff, x = n_diff, size = n_2019, col = ZIP))+
 #   geom_point()+
 #   geom_smooth(method=lm)+
@@ -267,10 +333,6 @@ zip %>%
 ```
 
 ``` r
-# covid related request by zip code 
-zip_covid_311 = dat %>% group_by(ZIP) %>% 
-  summarise(n_allcovid = sum(allcovid))
-
 # create data for request level reg
 dat_reg = dat %>% 
   left_join(zip_covid) %>%
@@ -932,25 +994,6 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
     ## Num. groups: factor(date)                              18         
     ## ==================================================================
     ## *** p < 0.001; ** p < 0.01; * p < 0.05
-
-``` r
-zip_covid %>% left_join(zip_covid_311) %>%
-  ggplot(aes(x = rate, y = n_allcovid))+ 
-  geom_point()+
-  geom_smooth(method=lm)+
-  labs(x= "COVID-19 infection rate", y="Volume of covid-related requests")+
-  theme_bw()
-```
-
-    ## Joining, by = "ZIP"
-
-    ## `geom_smooth()` using formula 'y ~ x'
-
-    ## Warning: Removed 1 rows containing non-finite values (stat_smooth).
-
-    ## Warning: Removed 1 rows containing missing values (geom_point).
-
-![](README_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
 Discussion
 
