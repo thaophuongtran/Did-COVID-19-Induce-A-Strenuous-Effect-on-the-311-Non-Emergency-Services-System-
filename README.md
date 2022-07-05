@@ -302,21 +302,24 @@ Delay in response time for non-covid related requests
 ``` r
 #scatter plot
 zip %>% 
-  #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  left_join(diff) %>%
+  filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
   ggplot(aes(y = daytoclose_diff, x = rate*100, size = daytoclose_2019, col = ZIP))+
   geom_point()+
   geom_smooth(method=lm)+
-  facet_wrap(~CATEGORY, scale = "free_y")+
+  facet_wrap(~reorder(CATEGORY,-diff_pchg), scale = "free_y")+
   labs(y = "Change in Response Time",x = "COVID-19 infection rate")+
   theme_bw()+
   theme(legend.position = "none")
 ```
 
+    ## Joining, by = "CATEGORY"
+
     ## `geom_smooth()` using formula 'y ~ x'
 
-    ## Warning: Removed 77 rows containing non-finite values (stat_smooth).
+    ## Warning: Removed 21 rows containing non-finite values (stat_smooth).
 
-    ## Warning: Removed 77 rows containing missing values (geom_point).
+    ## Warning: Removed 21 rows containing missing values (geom_point).
 
 ![](README_files/figure-gfm/zip_dtc-1.png)<!-- -->
 
@@ -360,7 +363,8 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
           omit.coef = "after|rate|Intercept", digits=4, 
           include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
           custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
-          custom.coef.names = "DiD effect"
+          custom.coef.names = "DiD effect"#,
+        #file = "reg.doc"
           )
 ```
 
@@ -385,6 +389,9 @@ reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Public Health",], DAYTOCLOSE~di
 reg_fe_a = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Health",],DAYTOCLOSE~did|rate+after ))
 #fe: rate + date(year-month)
 reg_fe_b = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Health",],DAYTOCLOSE~did|rate+factor(date) ))
+#fe: nbh + date(year-month)
+#reg_fe_c = (felm(data = dat_reg[dat_reg$CATEGORY == "Public Health",],DAYTOCLOSE~did|factor(NEIGH)+factor(date) ))
+
 
 #combine reg 
 screenreg(list(reg_ols, reg_fe_a, reg_fe_b), 
