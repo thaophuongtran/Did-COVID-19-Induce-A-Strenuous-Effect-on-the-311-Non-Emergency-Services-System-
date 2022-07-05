@@ -16,6 +16,10 @@ library(plm)
 library(haven)
 library(texreg)
 library(lfe)
+#install.packages("devtools")
+#library(devtools)
+#install_github('arilamstein/choroplethrZip@v1.3.0')
+library(choroplethrZip)
 
 #load 311 data 
 load("kcmo2019_2020.rdata")
@@ -125,8 +129,8 @@ dat %>%
   scale_fill_manual(values = c("dodgerblue4","green3"))+
   scale_pattern_manual(values=c("stripe","none"))+
   scale_y_continuous(labels =scales::comma)+
-  labs(x = "Requests Volume",
-       y = "Category",
+  labs(y = "Requests Volume",
+       x = "",
        fill = "Year",
        pattern = "Covid-Related"
        )+
@@ -138,18 +142,21 @@ dat %>%
 ``` r
 # plot response time by categories
 dat %>% 
-  filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  filter(CATEGORY != "Data Not Available") %>%
+  #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
   filter(CREATEMO %in% 3:8) %>%
   filter(allcovid==0) %>%
   left_join(diff)%>%
   mutate(CREATEYR = as.factor(CREATEYR))%>%
+  group_by(CREATEYR, CATEGORY,diff_pchg) %>% summarize(DAYTOCLOSE = mean(DAYTOCLOSE)) %>% 
   ggplot(aes(x = CREATEYR, y = DAYTOCLOSE, fill = CREATEYR))+
-  geom_boxplot(outlier.shape = NA,show.legend = FALSE)+
-  facet_wrap(~reorder(CATEGORY,-diff_pchg), ncol = 3,scale="free")+
+  geom_col(#outlier.shape = NA,
+               show.legend = FALSE)+
+  facet_wrap(~reorder(CATEGORY,-diff_pchg), ncol = 5,scale="free")+
   scale_fill_manual(values = c("dodgerblue4","green3"))+
-  ylim(c(0,80))+
+  #ylim(c(0,80))+
   labs(x = "",
-       y = "Reponse Time",
+       y = "Average Reponse Time",
        fill = "Year",
        pattern = "Covid-Related"
        )+
@@ -200,6 +207,22 @@ zip = zip_dtc %>% left_join(zip_n) %>%
     ## Joining, by = c("CATEGORY", "ZIP")
 
     ## Joining, by = "ZIP"
+
+``` r
+#list of zip to zoom in
+zip_kcmo = unique(as.character(zip_covid$ZIP))
+
+#zip code choropleth for covid infection rate
+zip_choropleth(zip_covid %>% mutate(region = as.character(ZIP), value = rate*100), 
+               #state_zoom = ec_states, 
+               zip_zoom = zip_kcmo,
+               title      = "",
+               legend     = "COVID-19 Infection Rate") + coord_map()   
+```
+
+    ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
+
+![](README_files/figure-gfm/zip_choropleth-1.png)<!-- -->
 
 ``` r
 # #scatterplot
