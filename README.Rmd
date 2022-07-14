@@ -185,64 +185,81 @@ zip_n = dat %>%
   mutate(n_diff = `2020`-`2019`,
          n_pchg = (`2020` / `2019`-1)*100)  %>% rename(n_2020 = `2020`,n_2019=`2019`)
 
+# volume of covid-related of requests
+zip_covid_311 = dat %>%
+  group_by(ZIP) %>% 
+  summarize(n = n(), n_allcovid = sum(allcovid)) %>% na.omit()
+
 #merge data 
 zip = zip_dtc %>% left_join(zip_n) %>%
-  left_join(zip_covid)
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311)
   
 ```
 
 ```{r zip_choropleth}
 
 #list of zip to zoom in
-zip_kcmo = unique(as.character(zip_covid$ZIP))
+zip_kcmo = unique(as.character(zip_covid_311$ZIP))
 
-#zip code choropleth for covid infection rate
-zip_choropleth(zip_covid %>% mutate(region = as.character(ZIP), value = rate*100), 
-               #state_zoom = ec_states, 
+#zip code choropleth for 
+zip_choropleth(zip_covid_311 %>% mutate(region = as.character(ZIP), value = n_allcovid), 
                zip_zoom = zip_kcmo,
                title      = "",
-               legend     = "COVID-19 Infection Rate") + coord_map()   
-
+               legend     = "Volume of Covid-related Requests") + coord_map()   
 
 
 ```
-
-
-Influx of covid-related requests due to COVID-19
 
 ```{r}
-# covid related request by zip code 
-zip_covid_311 = dat %>% group_by(ZIP) %>% 
-  summarise(
-    n = n(),
-    n_allcovid = sum(allcovid))
-
-#scatter plot
-zip_covid %>% left_join(zip_covid_311) %>%
-  ggplot(aes(x = rate*100, y = n_allcovid, size = n, col = n))+ 
-  geom_point()+
-  geom_smooth(method=lm)+
-  labs(x= "COVID-19 infection rate", y="Volume of covid-related requests")+
-  theme_bw()+
-  theme(legend.position = "none")
-
-#reg
-summary(lm(rate*100 ~ n_allcovid, 
-           data = zip_covid %>% left_join(zip_covid_311)))
-
-```
-
-
-```{r zip_vol, fig.height = 8,fig.width=8}
 #scatterplot
-zip %>%
-  ggplot(aes(y = n_diff, x = rate, size = n_2019, col = ZIP))+
+dat %>% 
+  #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  filter(CREATEMO %in% 3:8) %>%
+  group_by(CREATEYR, ZIP) %>%
+  summarize(daytoclose = mean(DAYTOCLOSE,na.rm=T)) %>%
+  dcast(ZIP ~ CREATEYR) %>% 
+  mutate(daytoclose_diff = `2020`-`2019`)%>% rename(daytoclose_2020 = `2020`,daytoclose_2019=`2019`) %>%
+  left_join(zip_covid_311) %>% 
+  ggplot(aes(y = daytoclose_diff, x = n_allcovid, size = n, col = ZIP))+
   geom_point()+
   geom_smooth(method=lm)+
-  facet_wrap(~CATEGORY, scale = "free_y")+
   theme_bw()+
   theme(legend.position = "none")
+
+#linear regression
+summary(lm(daytoclose_diff~n_allcovid, data = dat %>% 
+  #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  filter(CREATEMO %in% 3:8) %>%
+  group_by(CREATEYR, ZIP) %>%
+  summarize(daytoclose = mean(DAYTOCLOSE,na.rm=T)) %>%
+  dcast(ZIP ~ CREATEYR) %>% 
+  mutate(daytoclose_diff = `2020`-`2019`)%>% rename(daytoclose_2020 = `2020`,daytoclose_2019=`2019`) %>%
+  left_join(zip_covid_311)
+))
+   
+  
 ```
+
+pretrends
+
+```{r}
+rank10 = zip_covid_311 %>% 
+  mutate(group = cut(zip_covid_311$n_allcovid,breaks = quantile(zip_covid_311$n_allcovid,seq(0,1,0.2)),labels = FALSE,include.lowest = TRUE)) 
+
+dat %>% left_join(rank10 ) %>% filter(group %in%c(1,5)) %>% 
+  group_by(group,date) %>% 
+  summarise(daytoclose = mean(DAYTOCLOSE,na.rm=T)) %>% 
+  ggplot(aes(x = date, y = daytoclose, group = group, col = as.factor(group)))+
+  geom_line(lwd= 1.5)+
+  theme_bw()
+
+```
+
+
+
+
+
 
 
 Delay in response time for non-covid related requests
@@ -250,30 +267,16 @@ Delay in response time for non-covid related requests
 
 
 
-```{r zip_dtc, fig.height = 3,fig.width=8}
-#scatter plot
-zip %>% 
-  left_join(diff) %>%
-  filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
-  ggplot(aes(y = daytoclose_diff, x = rate*100, size = daytoclose_2019, col = ZIP))+
+```{r zip_dtc, fig.height = 6,fig.width=8}
+#scatterplot
+zip %>%
+  filter(CATEGORY != "Data Not Available") %>%
+  ggplot(aes(y = daytoclose_diff, x = n_allcovid, size = n_2019, col = ZIP))+
   geom_point()+
   geom_smooth(method=lm)+
-  facet_wrap(~reorder(CATEGORY,-diff_pchg), scale = "free_y")+
-  labs(y = "Change in Response Time",x = "COVID-19 infection rate")+
+  facet_wrap(~CATEGORY, scale = "free", ncol=5)+
   theme_bw()+
   theme(legend.position = "none")
-```
-
-```{r zip_dtc2, fig.height = 3,fig.width=8}
-# #scatterplot
-# zip %>% 
-#   filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
-#   ggplot(aes(y = daytoclose_diff, x = n_diff, size = n_2019, col = ZIP))+
-#   geom_point()+
-#   geom_smooth(method=lm)+
-#   facet_wrap(~CATEGORY, scale = "free")+
-#   theme_bw()+
-#   theme(legend.position = "none")
 ```
 
 ```{r}
@@ -304,8 +307,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
           omit.coef = "after|rate|Intercept", digits=4, 
           include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
           custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
-          custom.coef.names = "DiD effect"#,
-        #file = "reg.doc"
+          custom.coef.names = "DiD effect"
           )
 
 ```

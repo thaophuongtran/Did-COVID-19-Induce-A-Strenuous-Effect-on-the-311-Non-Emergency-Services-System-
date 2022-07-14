@@ -196,144 +196,152 @@ zip_n = dat %>%
     ## Using n as value column: use value.var to override.
 
 ``` r
+# volume of covid-related of requests
+zip_covid_311 = dat %>%
+  group_by(ZIP) %>% 
+  summarize(n = n(), n_allcovid = sum(allcovid)) %>% na.omit()
+
 #merge data 
 zip = zip_dtc %>% left_join(zip_n) %>%
-  left_join(zip_covid)
+  left_join(zip_covid) %>%
+  left_join(zip_covid_311)
 ```
 
     ## Joining, by = c("CATEGORY", "ZIP")
 
     ## Joining, by = "ZIP"
+    ## Joining, by = "ZIP"
 
 ``` r
 #list of zip to zoom in
-zip_kcmo = unique(as.character(zip_covid$ZIP))
+zip_kcmo = unique(as.character(zip_covid_311$ZIP))
 
-#zip code choropleth for covid infection rate
-zip_choropleth(zip_covid %>% mutate(region = as.character(ZIP), value = rate*100), 
-               #state_zoom = ec_states, 
+#zip code choropleth for 
+zip_choropleth(zip_covid_311 %>% mutate(region = as.character(ZIP), value = n_allcovid), 
                zip_zoom = zip_kcmo,
                title      = "",
-               legend     = "COVID-19 Infection Rate") + coord_map()   
+               legend     = "Volume of Covid-related Requests") + coord_map()   
 ```
 
     ## Coordinate system already present. Adding new coordinate system, which will replace the existing one.
 
 ![](README_files/figure-gfm/zip_choropleth-1.png)<!-- -->
 
-Influx of covid-related requests due to COVID-19
-
 ``` r
-# covid related request by zip code 
-zip_covid_311 = dat %>% group_by(ZIP) %>% 
-  summarise(
-    n = n(),
-    n_allcovid = sum(allcovid))
-
-#scatter plot
-zip_covid %>% left_join(zip_covid_311) %>%
-  ggplot(aes(x = rate*100, y = n_allcovid, size = n, col = n))+ 
+#scatterplot
+dat %>% 
+  #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  filter(CREATEMO %in% 3:8) %>%
+  group_by(CREATEYR, ZIP) %>%
+  summarize(daytoclose = mean(DAYTOCLOSE,na.rm=T)) %>%
+  dcast(ZIP ~ CREATEYR) %>% 
+  mutate(daytoclose_diff = `2020`-`2019`)%>% rename(daytoclose_2020 = `2020`,daytoclose_2019=`2019`) %>%
+  left_join(zip_covid_311) %>% 
+  ggplot(aes(y = daytoclose_diff, x = n_allcovid, size = n, col = ZIP))+
   geom_point()+
   geom_smooth(method=lm)+
-  labs(x= "COVID-19 infection rate", y="Volume of covid-related requests")+
   theme_bw()+
   theme(legend.position = "none")
 ```
+
+    ## `summarise()` has grouped output by 'CREATEYR'. You can override using the `.groups` argument.
+
+    ## Using daytoclose as value column: use value.var to override.
 
     ## Joining, by = "ZIP"
 
     ## `geom_smooth()` using formula 'y ~ x'
 
-    ## Warning: Removed 1 rows containing non-finite values (stat_smooth).
+    ## Warning: Removed 2 rows containing non-finite values (stat_smooth).
 
-    ## Warning: Removed 1 rows containing missing values (geom_point).
+    ## Warning: Removed 2 rows containing missing values (geom_point).
 
 ![](README_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
 
 ``` r
-#reg
-summary(lm(rate*100 ~ n_allcovid, 
-           data = zip_covid %>% left_join(zip_covid_311)))
+#linear regression
+summary(lm(daytoclose_diff~n_allcovid, data = dat %>% 
+  #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
+  filter(CREATEMO %in% 3:8) %>%
+  group_by(CREATEYR, ZIP) %>%
+  summarize(daytoclose = mean(DAYTOCLOSE,na.rm=T)) %>%
+  dcast(ZIP ~ CREATEYR) %>% 
+  mutate(daytoclose_diff = `2020`-`2019`)%>% rename(daytoclose_2020 = `2020`,daytoclose_2019=`2019`) %>%
+  left_join(zip_covid_311)
+))
 ```
+
+    ## `summarise()` has grouped output by 'CREATEYR'. You can override using the `.groups` argument.
+
+    ## Using daytoclose as value column: use value.var to override.
 
     ## Joining, by = "ZIP"
 
     ## 
     ## Call:
-    ## lm(formula = rate * 100 ~ n_allcovid, data = zip_covid %>% left_join(zip_covid_311))
+    ## lm(formula = daytoclose_diff ~ n_allcovid, data = dat %>% filter(CREATEMO %in% 
+    ##     3:8) %>% group_by(CREATEYR, ZIP) %>% summarize(daytoclose = mean(DAYTOCLOSE, 
+    ##     na.rm = T)) %>% dcast(ZIP ~ CREATEYR) %>% mutate(daytoclose_diff = `2020` - 
+    ##     `2019`) %>% rename(daytoclose_2020 = `2020`, daytoclose_2019 = `2019`) %>% 
+    ##     left_join(zip_covid_311))
     ## 
     ## Residuals:
     ##     Min      1Q  Median      3Q     Max 
-    ## -4.3411 -1.1752 -0.1172  0.8321  7.5930 
+    ## -38.026  -5.469   1.247   4.698  30.599 
     ## 
     ## Coefficients:
-    ##              Estimate Std. Error t value Pr(>|t|)    
-    ## (Intercept)  8.661138   0.496996  17.427   <2e-16 ***
-    ## n_allcovid  -0.009069   0.007075  -1.282    0.206    
+    ##             Estimate Std. Error t value Pr(>|t|)   
+    ## (Intercept) -7.95615    2.26981  -3.505  0.00101 **
+    ## n_allcovid   0.06051    0.03231   1.873  0.06734 . 
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
-    ## Residual standard error: 2.384 on 47 degrees of freedom
-    ##   (1 observation deleted due to missingness)
-    ## Multiple R-squared:  0.03378,    Adjusted R-squared:  0.01322 
-    ## F-statistic: 1.643 on 1 and 47 DF,  p-value: 0.2062
+    ## Residual standard error: 10.89 on 47 degrees of freedom
+    ##   (2 observations deleted due to missingness)
+    ## Multiple R-squared:  0.06943,    Adjusted R-squared:  0.04963 
+    ## F-statistic: 3.507 on 1 and 47 DF,  p-value: 0.06734
+
+pretrends
 
 ``` r
-#scatterplot
-zip %>%
-  ggplot(aes(y = n_diff, x = rate, size = n_2019, col = ZIP))+
-  geom_point()+
-  geom_smooth(method=lm)+
-  facet_wrap(~CATEGORY, scale = "free_y")+
-  theme_bw()+
-  theme(legend.position = "none")
+rank10 = zip_covid_311 %>% 
+  mutate(group = cut(zip_covid_311$n_allcovid,breaks = quantile(zip_covid_311$n_allcovid,seq(0,1,0.2)),labels = FALSE,include.lowest = TRUE)) 
+
+dat %>% left_join(rank10 ) %>% filter(group %in%c(1,5)) %>% 
+  group_by(group,date) %>% 
+  summarise(daytoclose = mean(DAYTOCLOSE,na.rm=T)) %>% 
+  ggplot(aes(x = date, y = daytoclose, group = group, col = as.factor(group)))+
+  geom_line(lwd= 1.5)+
+  theme_bw()
 ```
 
-    ## `geom_smooth()` using formula 'y ~ x'
+    ## Joining, by = "ZIP"
 
-    ## Warning: Removed 77 rows containing non-finite values (stat_smooth).
+    ## `summarise()` has grouped output by 'group'. You can override using the `.groups` argument.
 
-    ## Warning: Removed 77 rows containing missing values (geom_point).
-
-![](README_files/figure-gfm/zip_vol-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
 
 Delay in response time for non-covid related requests
 
 ``` r
-#scatter plot
-zip %>% 
-  left_join(diff) %>%
-  filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
-  ggplot(aes(y = daytoclose_diff, x = rate*100, size = daytoclose_2019, col = ZIP))+
+#scatterplot
+zip %>%
+  filter(CATEGORY != "Data Not Available") %>%
+  ggplot(aes(y = daytoclose_diff, x = n_allcovid, size = n_2019, col = ZIP))+
   geom_point()+
   geom_smooth(method=lm)+
-  facet_wrap(~reorder(CATEGORY,-diff_pchg), scale = "free_y")+
-  labs(y = "Change in Response Time",x = "COVID-19 infection rate")+
+  facet_wrap(~CATEGORY, scale = "free", ncol=5)+
   theme_bw()+
   theme(legend.position = "none")
 ```
 
-    ## Joining, by = "CATEGORY"
-
     ## `geom_smooth()` using formula 'y ~ x'
 
-    ## Warning: Removed 21 rows containing non-finite values (stat_smooth).
+    ## Warning: Removed 67 rows containing non-finite values (stat_smooth).
 
-    ## Warning: Removed 21 rows containing missing values (geom_point).
+    ## Warning: Removed 67 rows containing missing values (geom_point).
 
 ![](README_files/figure-gfm/zip_dtc-1.png)<!-- -->
-
-``` r
-# #scatterplot
-# zip %>% 
-#   filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
-#   ggplot(aes(y = daytoclose_diff, x = n_diff, size = n_2019, col = ZIP))+
-#   geom_point()+
-#   geom_smooth(method=lm)+
-#   facet_wrap(~CATEGORY, scale = "free")+
-#   theme_bw()+
-#   theme(legend.position = "none")
-```
 
 ``` r
 # create data for request level reg
@@ -363,8 +371,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
           omit.coef = "after|rate|Intercept", digits=4, 
           include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
           custom.model.names = c("OLS", "FE period-rate", "FE date-rate"),
-          custom.coef.names = "DiD effect"#,
-        #file = "reg.doc"
+          custom.coef.names = "DiD effect"
           )
 ```
 
@@ -499,10 +506,10 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
     ## =========================================================================
     ##                            OLS             FE period-rate  FE date-rate  
     ## -------------------------------------------------------------------------
-    ## DiD effect                      0.0159 **       0.0186 **       0.0165 **
+    ## DiD effect                      0.0159 **       0.0185 **       0.0165 **
     ##                                (0.0058)        (0.0058)        (0.0057)  
     ## -------------------------------------------------------------------------
-    ## Num. obs.                  170261          170261          170261        
+    ## Num. obs.                  170260          170260          170260        
     ## Num. groups: n_allcovid                        41              41        
     ## Num. groups: after                              2                        
     ## Num. groups: factor(date)                                      18        
@@ -530,10 +537,10 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
     ## ===================================================================
     ##                            OLS         FE period-rate  FE date-rate
     ## -------------------------------------------------------------------
-    ## DiD effect                    0.0029      0.0030          0.0004   
+    ## DiD effect                    0.0027      0.0030          0.0000   
     ##                              (0.0175)    (0.0176)        (0.0172)  
     ## -------------------------------------------------------------------
-    ## Num. obs.                  4805        4805            4805        
+    ## Num. obs.                  4804        4804            4804        
     ## Num. groups: n_allcovid                  41              41        
     ## Num. groups: after                        2                        
     ## Num. groups: factor(date)                                18        
@@ -842,10 +849,10 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
     ## ==================================================================
     ##                            OLS        FE period-rate  FE date-rate
     ## ------------------------------------------------------------------
-    ## DiD effect                   0.0444     0.0446          0.0425 *  
+    ## DiD effect                   0.0423     0.0424          0.0400    
     ##                             (0.0248)   (0.0239)        (0.0213)   
     ## ------------------------------------------------------------------
-    ## Num. obs.                  875        875             875         
+    ## Num. obs.                  874        874             874         
     ## Num. groups: n_allcovid                41              41         
     ## Num. groups: after                      2                         
     ## Num. groups: factor(date)                              18         
@@ -892,10 +899,10 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
     ## ==================================================================
     ##                            OLS        FE period-rate  FE date-rate
     ## ------------------------------------------------------------------
-    ## DiD effect                  -0.0305    -0.0296         -0.0251    
-    ##                             (0.0296)   (0.0299)        (0.0277)   
+    ## DiD effect                  -0.0320    -0.0299         -0.0275    
+    ##                             (0.0297)   (0.0300)        (0.0278)   
     ## ------------------------------------------------------------------
-    ## Num. obs.                  665        665             665         
+    ## Num. obs.                  664        664             664         
     ## Num. groups: n_allcovid                41              41         
     ## Num. groups: after                      2                         
     ## Num. groups: factor(date)                              18         
