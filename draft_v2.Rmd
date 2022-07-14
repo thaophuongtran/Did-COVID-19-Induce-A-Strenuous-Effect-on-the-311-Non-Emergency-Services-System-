@@ -149,8 +149,35 @@ dat %>%
        x = "",
        fill = "Covid-Related"
        )+
+  coord_cartesian(ylim = c(0, 50)) +
   theme_bw()
 ```
+
+```{r,fig.width=15,fig.height=8}
+# plot request volume by categories
+dat %>% 
+  filter(CATEGORY != "Data Not Available") %>%
+  filter(CREATEMO %in% 3:8) %>%
+  group_by(CREATEYR,allcovid,CATEGORY) %>%
+  count() %>% 
+  left_join(diff)%>%
+  mutate(CREATEYR = as.factor(CREATEYR),allcovid = as.factor(allcovid) )%>%
+  ggplot(aes(x = CREATEYR, y = n,  group = reorder(CREATEYR,n), fill = CREATEYR))+
+  geom_col_pattern(aes(pattern = reorder(allcovid,n)),#position = position_dodge(),
+                   col="black",width = 0.8)+
+  facet_wrap(~reorder(CATEGORY,-diff_pchg), scale = "free_y", ncol = 5)+
+  scale_fill_manual(values = c("dodgerblue4","red3"))+
+  scale_pattern_manual(values=c("stripe","none"))+
+  scale_y_continuous(labels =scales::comma)+
+  labs(y = "Requests Volume",
+       x = "",
+       fill = "Year",
+       pattern = "Covid-Related"
+       )+
+  theme_bw()
+```
+
+
 
 ```{r}
 # plot response time by categories
@@ -165,10 +192,10 @@ dat %>%
   dcast(CATEGORY+diff_pchg~CREATEYR) %>% mutate(
     dtc_chg = `2020`-`2019`
   ) %>%
-  ggplot(aes(x = dtc_chg, y = reorder(CATEGORY,diff_pchg), fill = (diff_pchg>1) ))+
+  ggplot(aes(x = dtc_chg, y = reorder(CATEGORY,diff_pchg), fill = (diff_pchg) ))+
   geom_col(show.legend = FALSE)+
-  xlim(c(-10,25))+
-  scale_fill_manual(values = c("red3","dodgerblue4"))+
+  xlim(c(-10,20))+
+  #scale_fill_manual(values = c("red3","dodgerblue4"))+
   labs(x = "Change in Average Response Time",
        y = "",
   )+

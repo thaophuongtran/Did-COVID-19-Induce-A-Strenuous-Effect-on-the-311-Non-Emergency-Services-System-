@@ -149,6 +149,7 @@ dat %>%
        x = "",
        fill = "Covid-Related"
        )+
+  coord_cartesian(ylim = c(0, 50)) +
   theme_bw()
 ```
 
@@ -157,6 +158,43 @@ dat %>%
     ## Joining, by = "CATEGORY"
 
 ![](draft_v2_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+
+``` r
+# plot request volume by categories
+dat %>% 
+  filter(CATEGORY != "Data Not Available") %>%
+  filter(CREATEMO %in% 3:8) %>%
+  group_by(CREATEYR,allcovid,CATEGORY) %>%
+  count() %>% 
+  left_join(diff)%>%
+  mutate(CREATEYR = as.factor(CREATEYR),allcovid = as.factor(allcovid) )%>%
+  ggplot(aes(x = CREATEYR, y = n,  group = reorder(CREATEYR,n), fill = CREATEYR))+
+  geom_col_pattern(aes(pattern = reorder(allcovid,n)),#position = position_dodge(),
+                   col="black",width = 0.8)+
+  facet_wrap(~reorder(CATEGORY,-diff_pchg), scale = "free_y", ncol = 5)+
+  scale_fill_manual(values = c("dodgerblue4","red3"))+
+  scale_pattern_manual(values=c("stripe","none"))+
+  scale_y_continuous(labels =scales::comma)+
+  labs(y = "Requests Volume",
+       x = "",
+       fill = "Year",
+       pattern = "Covid-Related"
+       )+
+  theme_bw()
+```
+
+    ## Joining, by = "CATEGORY"
+
+    ## Warning: convert_polygon_sf_to_polygon_df(): Not POLYGON or MULTIPOLYGON:
+    ## c("XY", "LINESTRING", "sfg")
+
+    ## Warning: convert_polygon_sf_to_polygon_df(): Not POLYGON or MULTIPOLYGON:
+    ## c("XY", "LINESTRING", "sfg")
+
+    ## Warning: convert_polygon_sf_to_polygon_df(): Not POLYGON or MULTIPOLYGON:
+    ## c("XY", "LINESTRING", "sfg")
+
+![](draft_v2_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ``` r
 # plot response time by categories
@@ -171,10 +209,10 @@ dat %>%
   dcast(CATEGORY+diff_pchg~CREATEYR) %>% mutate(
     dtc_chg = `2020`-`2019`
   ) %>%
-  ggplot(aes(x = dtc_chg, y = reorder(CATEGORY,diff_pchg), fill = (diff_pchg>1) ))+
+  ggplot(aes(x = dtc_chg, y = reorder(CATEGORY,diff_pchg), fill = (diff_pchg) ))+
   geom_col(show.legend = FALSE)+
-  xlim(c(-10,25))+
-  scale_fill_manual(values = c("red3","dodgerblue4"))+
+  xlim(c(-10,20))+
+  #scale_fill_manual(values = c("red3","dodgerblue4"))+
   labs(x = "Change in Average Response Time",
        y = "",
   )+
@@ -189,7 +227,7 @@ dat %>%
 
     ## Warning: Removed 1 rows containing missing values (position_stack).
 
-![](draft_v2_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](draft_v2_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 Method
 
@@ -291,7 +329,7 @@ dat %>%
 
     ## Warning: Removed 2 rows containing missing values (geom_point).
 
-![](draft_v2_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](draft_v2_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 ``` r
 #linear regression
