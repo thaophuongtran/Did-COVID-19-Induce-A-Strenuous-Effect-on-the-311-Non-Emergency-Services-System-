@@ -99,6 +99,13 @@ diff = dat %>%
   mutate(diff = `2020`-`2019`,
          diff_pchg = `2020`/`2019` )
 ```
+summary statistics 
+
+```{r}
+#summary stats
+
+
+```
 
 
 Despite the influx of covid-related calls, response time for public health and public safety are actually lower than the previous year  
