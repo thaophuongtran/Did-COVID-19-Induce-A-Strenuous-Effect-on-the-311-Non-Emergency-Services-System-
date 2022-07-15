@@ -395,15 +395,74 @@ screenreg(list(reg_fe_11, reg_fe_12,reg_fe_13,reg_fe_14,reg_fe_15),
           omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
           include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
           custom.model.names = c("Sidewalks / Curbs / Ditch", "Signs","Storm Water / Sewer","Streets / Roadways / Alleys","Trash / Recycling"),
-          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees")
-          )
-
-
-
-
+          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees"))
 ```
 
 
+Departments 
+
+```{r cate_dept, fig.height=6,fig.width=8}
+dat %>%
+  filter(CATEGORY != "Data Not Available") %>%
+  filter(CREATEMO %in% 3:8) %>%
+  group_by(CATEGORY, DEPT) %>%
+  count() %>%
+  left_join(diff)%>%
+  ggplot(aes(x = reorder(CATEGORY,-diff_pchg), y = DEPT, fill = n))+
+  geom_tile(lwd=1.5)+
+  scale_x_discrete(guide = guide_axis(angle = 90))+
+  labs(
+    y = "Department",
+    x = "Category",
+    fill = "Request Volume",
+    col = "Selected Catgories"
+  )+
+  theme_bw()
+```
+
+```{r}
+#fe: 911 + gov employees
+reg_fe_01 = (felm(data = dat_reg[dat_reg$DEPT=="Aviation",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_02 = (felm(data = dat_reg[dat_reg$DEPT=="City Managers Office",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_03 = (felm(data = dat_reg[dat_reg$DEPT=="City Planning and Development",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+#reg_fe_04 = (felm(data = dat_reg[dat_reg$DEPT=="Convention and Entertainment Center",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_05 = (felm(data = dat_reg[dat_reg$DEPT=="Finance",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_06 = (felm(data = dat_reg[dat_reg$DEPT=="Fire",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_07 = (felm(data = dat_reg[dat_reg$DEPT=="General Service",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_08 = (felm(data = dat_reg[dat_reg$DEPT=="Health",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+#reg_fe_09 = (felm(data = dat_reg[dat_reg$DEPT=="KCPD",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_10 = (felm(data = dat_reg[dat_reg$DEPT=="NHS",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+#reg_fe_11 = (felm(data = dat_reg[dat_reg$DEPT=="Northeast",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_12 = (felm(data = dat_reg[dat_reg$DEPT=="Northland",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_13 = (felm(data = dat_reg[dat_reg$DEPT=="Parks and Rec",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_14 = (felm(data = dat_reg[dat_reg$DEPT=="Public Works",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_15 = (felm(data = dat_reg[dat_reg$DEPT=="South",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_16 = (felm(data = dat_reg[dat_reg$DEPT=="Water Services",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+
+
+#combine reg 
+screenreg(list(reg_fe_01, reg_fe_02,reg_fe_03,reg_fe_05), 
+          omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("Aviation","City Managers Office","City Planning and Development","Finance"),
+          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees")
+          )
+
+#combine reg 
+screenreg(list(reg_fe_06, reg_fe_07,reg_fe_08,reg_fe_10), 
+          omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("Fire","General Service","Health","NHS"),
+          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees")
+          )
+
+#combine reg 
+screenreg(list(reg_fe_12,reg_fe_13,reg_fe_14,reg_fe_15,reg_fe_16), 
+          omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("Northland","Parks and Rec","Public Works","South","Water Services"),
+          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees"))
+```
 
 
 

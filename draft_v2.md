@@ -99,6 +99,12 @@ diff = dat %>%
 
     ## Using n as value column: use value.var to override.
 
+summary statistics
+
+``` r
+#summary stats
+```
+
 Despite the influx of covid-related calls, response time for public
 health and public safety are actually lower than the previous year
 
@@ -127,7 +133,7 @@ dat %>%
 
     ## Joining, by = "CATEGORY"
 
-![](draft_v2_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](draft_v2_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
 ``` r
 # plot response time by categories
@@ -157,7 +163,7 @@ dat %>%
 
     ## Joining, by = "CATEGORY"
 
-![](draft_v2_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+![](draft_v2_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
 
 ``` r
 # plot request volume by categories
@@ -194,7 +200,7 @@ dat %>%
     ## Warning: convert_polygon_sf_to_polygon_df(): Not POLYGON or MULTIPOLYGON:
     ## c("XY", "LINESTRING", "sfg")
 
-![](draft_v2_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](draft_v2_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
 
 ``` r
 # plot response time by categories
@@ -227,7 +233,7 @@ dat %>%
 
     ## Warning: Removed 1 rows containing missing values (position_stack).
 
-![](draft_v2_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](draft_v2_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 Method
 
@@ -329,7 +335,7 @@ dat %>%
 
     ## Warning: Removed 2 rows containing missing values (geom_point).
 
-![](draft_v2_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+![](draft_v2_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ``` r
 #linear regression
@@ -547,8 +553,7 @@ screenreg(list(reg_fe_11, reg_fe_12,reg_fe_13,reg_fe_14,reg_fe_15),
           omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
           include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
           custom.model.names = c("Sidewalks / Curbs / Ditch", "Signs","Storm Water / Sewer","Streets / Roadways / Alleys","Trash / Recycling"),
-          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees")
-          )
+          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees"))
 ```
 
     ## 
@@ -568,4 +573,134 @@ screenreg(list(reg_fe_11, reg_fe_12,reg_fe_13,reg_fe_14,reg_fe_15),
     ## Num. groups: n_allcovid       40                         41             41                    41                           41            
     ## Num. groups: after             2                          2              2                     2                            2            
     ## =========================================================================================================================================
+    ## *** p < 0.001; ** p < 0.01; * p < 0.05
+
+Departments
+
+``` r
+dat %>%
+  filter(CATEGORY != "Data Not Available") %>%
+  filter(CREATEMO %in% 3:8) %>%
+  group_by(CATEGORY, DEPT) %>%
+  count() %>%
+  left_join(diff)%>%
+  ggplot(aes(x = reorder(CATEGORY,-diff_pchg), y = DEPT, fill = n))+
+  geom_tile(lwd=1.5)+
+  scale_x_discrete(guide = guide_axis(angle = 90))+
+  labs(
+    y = "Department",
+    x = "Category",
+    fill = "Request Volume",
+    col = "Selected Catgories"
+  )+
+  theme_bw()
+```
+
+    ## Joining, by = "CATEGORY"
+
+![](draft_v2_files/figure-gfm/cate_dept-1.png)<!-- -->
+
+``` r
+#fe: 911 + gov employees
+reg_fe_01 = (felm(data = dat_reg[dat_reg$DEPT=="Aviation",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_02 = (felm(data = dat_reg[dat_reg$DEPT=="City Managers Office",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_03 = (felm(data = dat_reg[dat_reg$DEPT=="City Planning and Development",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+#reg_fe_04 = (felm(data = dat_reg[dat_reg$DEPT=="Convention and Entertainment Center",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_05 = (felm(data = dat_reg[dat_reg$DEPT=="Finance",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_06 = (felm(data = dat_reg[dat_reg$DEPT=="Fire",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_07 = (felm(data = dat_reg[dat_reg$DEPT=="General Service",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_08 = (felm(data = dat_reg[dat_reg$DEPT=="Health",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+#reg_fe_09 = (felm(data = dat_reg[dat_reg$DEPT=="KCPD",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_10 = (felm(data = dat_reg[dat_reg$DEPT=="NHS",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+#reg_fe_11 = (felm(data = dat_reg[dat_reg$DEPT=="Northeast",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_12 = (felm(data = dat_reg[dat_reg$DEPT=="Northland",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_13 = (felm(data = dat_reg[dat_reg$DEPT=="Parks and Rec",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_14 = (felm(data = dat_reg[dat_reg$DEPT=="Public Works",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_15 = (felm(data = dat_reg[dat_reg$DEPT=="South",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+reg_fe_16 = (felm(data = dat_reg[dat_reg$DEPT=="Water Services",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+
+
+#combine reg 
+screenreg(list(reg_fe_01, reg_fe_02,reg_fe_03,reg_fe_05), 
+          omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("Aviation","City Managers Office","City Planning and Development","Finance"),
+          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees")
+          )
+```
+
+    ## 
+    ## =====================================================================================================
+    ##                             Aviation   City Managers Office  City Planning and Development  Finance  
+    ## -----------------------------------------------------------------------------------------------------
+    ## DiD effect                   -0.8670     -0.0105                0.0211                        0.0760 
+    ##                              (2.0705)    (0.0318)              (0.0775)                      (0.1089)
+    ## 911 Vol Fire Department      -3.1367      2.5870 ***            4.0121 **                    -1.4267 
+    ##                             (13.2196)    (0.5088)              (1.4540)                      (1.7708)
+    ## 911 Vol Police Department    -0.0042     -0.0025 *              0.0095 **                     0.0006 
+    ##                              (0.0158)    (0.0011)              (0.0031)                      (0.0037)
+    ## Local Government Employees   -0.0005      0.0003               -0.0020 **                    -0.0001 
+    ##                              (0.0020)    (0.0003)              (0.0007)                      (0.0008)
+    ## -----------------------------------------------------------------------------------------------------
+    ## Num. obs.                    13        2938                  1688                           246      
+    ## Num. groups: n_allcovid       3          41                    40                            38      
+    ## Num. groups: after            2           2                     2                             2      
+    ## =====================================================================================================
+    ## *** p < 0.001; ** p < 0.01; * p < 0.05
+
+``` r
+#combine reg 
+screenreg(list(reg_fe_06, reg_fe_07,reg_fe_08,reg_fe_10), 
+          omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("Fire","General Service","Health","NHS"),
+          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees")
+          )
+```
+
+    ## 
+    ## ====================================================================================
+    ##                             Fire      General Service  Health         NHS           
+    ## ------------------------------------------------------------------------------------
+    ## DiD effect                   0.1117   -0.2692            -0.0325         -0.0034    
+    ##                             (0.2481)  (0.8760)           (0.0189)        (0.0098)   
+    ## 911 Vol Fire Department     -4.2686    8.8233             0.9686 **       0.9419 ***
+    ##                             (3.8690)  (6.9716)           (0.3096)        (0.1499)   
+    ## 911 Vol Police Department    0.0079   -0.0071             0.0028 ***      0.0024 ***
+    ##                             (0.0093)  (0.0156)           (0.0007)        (0.0003)   
+    ## Local Government Employees  -0.0016    0.0009            -0.0010 ***     -0.0001    
+    ##                             (0.0020)  (0.0035)           (0.0002)        (0.0001)   
+    ## ------------------------------------------------------------------------------------
+    ## Num. obs.                   62        65               6350           87987         
+    ## Num. groups: n_allcovid     26        18                 41              41         
+    ## Num. groups: after           2         2                  2               2         
+    ## ====================================================================================
+    ## *** p < 0.001; ** p < 0.01; * p < 0.05
+
+``` r
+#combine reg 
+screenreg(list(reg_fe_12,reg_fe_13,reg_fe_14,reg_fe_15,reg_fe_16), 
+          omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("Northland","Parks and Rec","Public Works","South","Water Services"),
+          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees"))
+```
+
+    ## 
+    ## ======================================================================================================
+    ##                             Northland      Parks and Rec  Public Works    South         Water Services
+    ## ------------------------------------------------------------------------------------------------------
+    ## DiD effect                     0.0622        -0.0087         -0.0061       -0.0346          0.1353 ***
+    ##                               (0.0518)       (0.0352)        (0.0075)      (0.0717)        (0.0150)   
+    ## 911 Vol Fire Department        2.5139 ***     2.2991 ***      0.2053       -1.3342          0.1731    
+    ##                               (0.3380)       (0.5423)        (0.1336)      (2.0364)        (0.3086)   
+    ## 911 Vol Police Department      0.0153 ***     0.0067 ***      0.0047 ***    0.0172 ***     -0.0003    
+    ##                               (0.0008)       (0.0012)        (0.0003)      (0.0044)        (0.0007)   
+    ## Local Government Employees    -0.0032 ***    -0.0012 ***     -0.0008 ***   -0.0031 **       0.0006 ***
+    ##                               (0.0002)       (0.0003)        (0.0001)      (0.0011)        (0.0002)   
+    ## ------------------------------------------------------------------------------------------------------
+    ## Num. obs.                   5952           2910           48721           511           12757         
+    ## Num. groups: n_allcovid       28             40              41            13              41         
+    ## Num. groups: after             2              2               2             2               2         
+    ## ======================================================================================================
     ## *** p < 0.001; ** p < 0.01; * p < 0.05
