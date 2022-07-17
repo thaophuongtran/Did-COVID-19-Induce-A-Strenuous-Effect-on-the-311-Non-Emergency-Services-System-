@@ -20,6 +20,7 @@ library(lfe)
 #library(devtools)
 #install_github('arilamstein/choroplethrZip@v1.3.0')
 library(choroplethrZip)
+library(kableExtra)
 
 #load 311 data 
 load("kcmo2019_2020.rdata")
@@ -47,6 +48,8 @@ dat$date = as.Date(as.character(dat$date*100+1),"%Y%m%d")
 # incomplete requests are imputed with 180 days (close date doen't exist)
 #dat$DAYTOCLOSE[dat$DAYTOCLOSE==180] = NA
 
+#remove data not avail
+dat = dat %>% filter(CATEGORY != "Data Not Available")
 # create covid related calls 
 dat = dat %>%
   mutate(
@@ -103,6 +106,74 @@ summary statistics
 
 ``` r
 #summary stats
+ss01 = dat %>% summarize(obs = n(),
+                 min = min(DAYTOCLOSE,na.rm=T),
+                 q25 = quantile(DAYTOCLOSE,0.25,na.rm=T),
+                 mean = mean(DAYTOCLOSE,na.rm=T),
+                 q75 = quantile(DAYTOCLOSE,0.75,na.rm=T),
+                 max = max(DAYTOCLOSE,na.rm=T)
+                 ) %>% mutate(var = "all")
+
+ss02 = dat %>% 
+  group_by(allcovid) %>%
+  summarize(obs = n(),
+                 min = min(DAYTOCLOSE,na.rm=T),
+                 q25 = quantile(DAYTOCLOSE,0.25,na.rm=T),
+                 mean = mean(DAYTOCLOSE,na.rm=T),
+                 q75 = quantile(DAYTOCLOSE,0.75,na.rm=T),
+                 max = max(DAYTOCLOSE,na.rm=T)
+                 ) %>% rename(var = allcovid)
+
+ss03 = dat %>% 
+  group_by(CATEGORY) %>%
+  summarize(obs = n(),
+                 min = min(DAYTOCLOSE,na.rm=T),
+                 q25 = quantile(DAYTOCLOSE,0.25,na.rm=T),
+                 mean = mean(DAYTOCLOSE,na.rm=T),
+                 q75 = quantile(DAYTOCLOSE,0.75,na.rm=T),
+                 max = max(DAYTOCLOSE,na.rm=T)
+                 ) %>% rename(var = CATEGORY)
+
+ss04 = dat %>% 
+  group_by(CREATEYR) %>%
+  summarize(obs = n(),
+                 min = min(DAYTOCLOSE,na.rm=T),
+                 q25 = quantile(DAYTOCLOSE,0.25,na.rm=T),
+                 mean = mean(DAYTOCLOSE,na.rm=T),
+                 q75 = quantile(DAYTOCLOSE,0.75,na.rm=T),
+                 max = max(DAYTOCLOSE,na.rm=T)
+                 ) %>% rename(var = CREATEYR)
+
+ss = rbind(ss01,ss02,ss04,ss03)
+ss
+```
+
+    ##       obs min q25      mean q75 max                                 var
+    ## 1  172722   0   2 32.609685  31 532                                 all
+    ## 2  170215   0   2 32.807655  31 532                                   0
+    ## 3    2507   0   1 19.168329   6 180                                   1
+    ## 4   96161   0   2 32.860286  36 532                                2019
+    ## 5   76561   0   1 32.294928  24 238                                2020
+    ## 6   16263   0   1  8.717641   4 368                      Animals / Pets
+    ## 7    1818   0   9 52.468647  71 210                    Capital Projects
+    ## 8      84   0   1 70.928571 180 216                     City Facilities
+    ## 9    1193   0   1 14.334451   9 320                          Government
+    ## 10   7590   0   2  8.551252   5 243                    Lights / Signals
+    ## 11   8986   0   9 82.613621 180 483                      Mowing / Weeds
+    ## 12   2156   0   3 30.823748  35 211                  Parks & Recreation
+    ## 13  22361   0   8 70.235007 144 532 Property / Buildings / Construction
+    ## 14   6881   0   1 15.950879  12 269                       Public Health
+    ## 15   1047   0   5 27.830946  29 180                       Public Safety
+    ## 16   3239   0   1 16.947823  14 273           Sidewalks / Curbs / Ditch
+    ## 17   4368   0   4 18.459478  14 400                               Signs
+    ## 18   9351   0   4 35.345097  49 427                 Storm Water / Sewer
+    ## 19  33053   0   7 35.586543  50 432         Streets / Roadways / Alleys
+    ## 20  54332   0   1 21.106549   8 532                   Trash / Recycling
+
+``` r
+# ss %>% 
+#   kable() %>%
+#   kable_styling()
 ```
 
 Despite the influx of covid-related calls, response time for public
@@ -366,19 +437,19 @@ summary(lm(daytoclose_diff~n_allcovid, data = dat %>%
     ## 
     ## Residuals:
     ##     Min      1Q  Median      3Q     Max 
-    ## -38.026  -5.469   1.247   4.698  30.599 
+    ## -38.026  -5.469   1.246   4.698  30.599 
     ## 
     ## Coefficients:
     ##             Estimate Std. Error t value Pr(>|t|)   
-    ## (Intercept) -7.95615    2.26981  -3.505  0.00101 **
-    ## n_allcovid   0.06051    0.03231   1.873  0.06734 . 
+    ## (Intercept) -7.95645    2.26984  -3.505  0.00101 **
+    ## n_allcovid   0.06054    0.03231   1.874  0.06720 . 
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
     ## 
     ## Residual standard error: 10.89 on 47 degrees of freedom
     ##   (2 observations deleted due to missingness)
-    ## Multiple R-squared:  0.06943,    Adjusted R-squared:  0.04963 
-    ## F-statistic: 3.507 on 1 and 47 DF,  p-value: 0.06734
+    ## Multiple R-squared:  0.0695, Adjusted R-squared:  0.04971 
+    ## F-statistic: 3.511 on 1 and 47 DF,  p-value: 0.0672
 
 Difference in difference
 
@@ -423,10 +494,10 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b,reg_fe_c),
     ## ====================================================================================================
     ##                             OLS             FE period-zipcode  FE date-zipcode  FE date-neighborhood
     ## ----------------------------------------------------------------------------------------------------
-    ## DiD effect                       0.0159 **       0.0185 **          0.0165 **        0.0189 ***     
+    ## DiD effect                       0.0159 **       0.0186 **          0.0166 **        0.0190 ***     
     ##                                 (0.0058)        (0.0058)           (0.0057)         (0.0056)        
     ## ----------------------------------------------------------------------------------------------------
-    ## Num. obs.                   170260          170260             170260           170260              
+    ## Num. obs.                   170214          170214             170214           170214              
     ## Num. groups: n_allcovid                         41                 41                               
     ## Num. groups: after                               2                                                  
     ## Num. groups: factor(date)                                          18               18              
@@ -457,16 +528,16 @@ screenreg(list(reg_fe_a, reg_fe_b,reg_fe_c,reg_fe_d),
     ## =============================================================================================
     ##                             (1)             (2)              (3)              (4)            
     ## ---------------------------------------------------------------------------------------------
-    ## DiD effect                       0.0185 **       0.0198 ***       0.0192 ***       0.0199 ***
+    ## DiD effect                       0.0186 **       0.0198 ***       0.0192 ***       0.0200 ***
     ##                                 (0.0058)        (0.0058)         (0.0058)         (0.0058)   
-    ## 911 Vol Fire Department                          0.0039 ***                        0.0030 ***
+    ## 911 Vol Fire Department                          0.0040 ***                        0.0030 ***
     ##                                                 (0.0002)                          (0.0002)   
     ## 911 Vol Police Department                       -0.0006 ***                       -0.0003 ***
     ##                                                 (0.0000)                          (0.0000)   
-    ## Local Government Employees                                        1.3750 ***       0.9850 ***
-    ##                                                                  (0.0816)         (0.0948)   
+    ## Local Government Employees                                        1.3769 ***       0.9853 ***
+    ##                                                                  (0.0817)         (0.0948)   
     ## ---------------------------------------------------------------------------------------------
-    ## Num. obs.                   170260          170260           170260           170260         
+    ## Num. obs.                   170214          170214           170214           170214         
     ## Num. groups: n_allcovid         41              41               41               41         
     ## Num. groups: after               2               2                2                2         
     ## =============================================================================================
@@ -633,16 +704,16 @@ screenreg(list(reg_fe_01, reg_fe_02,reg_fe_03,reg_fe_05),
     ## =====================================================================================================
     ##                             Aviation   City Managers Office  City Planning and Development  Finance  
     ## -----------------------------------------------------------------------------------------------------
-    ## DiD effect                   -0.8670     -0.0105                0.0211                        0.0760 
-    ##                              (2.0705)    (0.0318)              (0.0775)                      (0.1089)
-    ## 911 Vol Fire Department      -3.1367      2.5870 ***            4.0121 **                    -1.4267 
-    ##                             (13.2196)    (0.5088)              (1.4540)                      (1.7708)
-    ## 911 Vol Police Department    -0.0042     -0.0025 *              0.0095 **                     0.0006 
+    ## DiD effect                   -0.8670     -0.0090                0.0220                        0.0760 
+    ##                              (2.0705)    (0.0313)              (0.0776)                      (0.1089)
+    ## 911 Vol Fire Department      -3.1367      2.4278 ***            3.9787 **                    -1.4267 
+    ##                             (13.2196)    (0.5015)              (1.4553)                      (1.7708)
+    ## 911 Vol Police Department    -0.0042     -0.0021                0.0096 **                     0.0006 
     ##                              (0.0158)    (0.0011)              (0.0031)                      (0.0037)
-    ## Local Government Employees   -0.0005      0.0003               -0.0020 **                    -0.0001 
+    ## Local Government Employees   -0.0005      0.0002               -0.0021 **                    -0.0001 
     ##                              (0.0020)    (0.0003)              (0.0007)                      (0.0008)
     ## -----------------------------------------------------------------------------------------------------
-    ## Num. obs.                    13        2938                  1688                           246      
+    ## Num. obs.                    13        2925                  1684                           246      
     ## Num. groups: n_allcovid       3          41                    40                            38      
     ## Num. groups: after            2           2                     2                             2      
     ## =====================================================================================================
@@ -662,17 +733,17 @@ screenreg(list(reg_fe_06, reg_fe_07,reg_fe_08,reg_fe_10),
     ## ====================================================================================
     ##                             Fire      General Service  Health         NHS           
     ## ------------------------------------------------------------------------------------
-    ## DiD effect                   0.1117   -0.2692            -0.0325         -0.0034    
-    ##                             (0.2481)  (0.8760)           (0.0189)        (0.0098)   
-    ## 911 Vol Fire Department     -4.2686    8.8233             0.9686 **       0.9419 ***
-    ##                             (3.8690)  (6.9716)           (0.3096)        (0.1499)   
-    ## 911 Vol Police Department    0.0079   -0.0071             0.0028 ***      0.0024 ***
-    ##                             (0.0093)  (0.0156)           (0.0007)        (0.0003)   
-    ## Local Government Employees  -0.0016    0.0009            -0.0010 ***     -0.0001    
-    ##                             (0.0020)  (0.0035)           (0.0002)        (0.0001)   
+    ## DiD effect                   0.1092   -0.2692            -0.0323         -0.0034    
+    ##                             (0.2278)  (0.8760)           (0.0189)        (0.0098)   
+    ## 911 Vol Fire Department     -4.3998    8.8233             0.9727 **       0.9435 ***
+    ##                             (3.5540)  (6.9716)           (0.3098)        (0.1499)   
+    ## 911 Vol Police Department    0.0083   -0.0071             0.0028 ***      0.0024 ***
+    ##                             (0.0085)  (0.0156)           (0.0007)        (0.0003)   
+    ## Local Government Employees  -0.0016    0.0009            -0.0009 ***     -0.0001    
+    ##                             (0.0019)  (0.0035)           (0.0002)        (0.0001)   
     ## ------------------------------------------------------------------------------------
-    ## Num. obs.                   62        65               6350           87987         
-    ## Num. groups: n_allcovid     26        18                 41              41         
+    ## Num. obs.                   60        65               6347           87980         
+    ## Num. groups: n_allcovid     25        18                 41              41         
     ## Num. groups: after           2         2                  2               2         
     ## ====================================================================================
     ## *** p < 0.001; ** p < 0.01; * p < 0.05
@@ -690,16 +761,16 @@ screenreg(list(reg_fe_12,reg_fe_13,reg_fe_14,reg_fe_15,reg_fe_16),
     ## ======================================================================================================
     ##                             Northland      Parks and Rec  Public Works    South         Water Services
     ## ------------------------------------------------------------------------------------------------------
-    ## DiD effect                     0.0622        -0.0087         -0.0061       -0.0346          0.1353 ***
-    ##                               (0.0518)       (0.0352)        (0.0075)      (0.0717)        (0.0150)   
-    ## 911 Vol Fire Department        2.5139 ***     2.2991 ***      0.2053       -1.3342          0.1731    
-    ##                               (0.3380)       (0.5423)        (0.1336)      (2.0364)        (0.3086)   
-    ## 911 Vol Police Department      0.0153 ***     0.0067 ***      0.0047 ***    0.0172 ***     -0.0003    
-    ##                               (0.0008)       (0.0012)        (0.0003)      (0.0044)        (0.0007)   
+    ## DiD effect                     0.0627        -0.0110         -0.0061       -0.0334          0.1357 ***
+    ##                               (0.0519)       (0.0353)        (0.0075)      (0.0717)        (0.0150)   
+    ## 911 Vol Fire Department        2.5073 ***     2.3042 ***      0.2060       -1.3027          0.1758    
+    ##                               (0.3382)       (0.5427)        (0.1336)      (2.0369)        (0.3087)   
+    ## 911 Vol Police Department      0.0153 ***     0.0066 ***      0.0047 ***    0.0174 ***     -0.0003    
+    ##                               (0.0009)       (0.0012)        (0.0003)      (0.0044)        (0.0007)   
     ## Local Government Employees    -0.0032 ***    -0.0012 ***     -0.0008 ***   -0.0031 **       0.0006 ***
     ##                               (0.0002)       (0.0003)        (0.0001)      (0.0011)        (0.0002)   
     ## ------------------------------------------------------------------------------------------------------
-    ## Num. obs.                   5952           2910           48721           511           12757         
+    ## Num. obs.                   5949           2906           48717           510           12754         
     ## Num. groups: n_allcovid       28             40              41            13              41         
     ## Num. groups: after             2              2               2             2               2         
     ## ======================================================================================================

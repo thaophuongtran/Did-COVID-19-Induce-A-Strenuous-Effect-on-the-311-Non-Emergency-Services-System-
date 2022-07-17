@@ -21,6 +21,7 @@ library(lfe)
 #library(devtools)
 #install_github('arilamstein/choroplethrZip@v1.3.0')
 library(choroplethrZip)
+library(kableExtra)
 
 #load 311 data 
 load("kcmo2019_2020.rdata")
@@ -50,6 +51,8 @@ dat$date = as.Date(as.character(dat$date*100+1),"%Y%m%d")
 # incomplete requests are imputed with 180 days (close date doen't exist)
 #dat$DAYTOCLOSE[dat$DAYTOCLOSE==180] = NA
 
+#remove data not avail
+dat = dat %>% filter(CATEGORY != "Data Not Available")
 # create covid related calls 
 dat = dat %>%
   mutate(
@@ -103,7 +106,49 @@ summary statistics
 
 ```{r}
 #summary stats
+ss01 = dat %>% summarize(obs = n(),
+                 min = min(DAYTOCLOSE,na.rm=T),
+                 q25 = quantile(DAYTOCLOSE,0.25,na.rm=T),
+                 mean = mean(DAYTOCLOSE,na.rm=T),
+                 q75 = quantile(DAYTOCLOSE,0.75,na.rm=T),
+                 max = max(DAYTOCLOSE,na.rm=T)
+                 ) %>% mutate(var = "all")
 
+ss02 = dat %>% 
+  group_by(allcovid) %>%
+  summarize(obs = n(),
+                 min = min(DAYTOCLOSE,na.rm=T),
+                 q25 = quantile(DAYTOCLOSE,0.25,na.rm=T),
+                 mean = mean(DAYTOCLOSE,na.rm=T),
+                 q75 = quantile(DAYTOCLOSE,0.75,na.rm=T),
+                 max = max(DAYTOCLOSE,na.rm=T)
+                 ) %>% rename(var = allcovid)
+
+ss03 = dat %>% 
+  group_by(CATEGORY) %>%
+  summarize(obs = n(),
+                 min = min(DAYTOCLOSE,na.rm=T),
+                 q25 = quantile(DAYTOCLOSE,0.25,na.rm=T),
+                 mean = mean(DAYTOCLOSE,na.rm=T),
+                 q75 = quantile(DAYTOCLOSE,0.75,na.rm=T),
+                 max = max(DAYTOCLOSE,na.rm=T)
+                 ) %>% rename(var = CATEGORY)
+
+ss04 = dat %>% 
+  group_by(CREATEYR) %>%
+  summarize(obs = n(),
+                 min = min(DAYTOCLOSE,na.rm=T),
+                 q25 = quantile(DAYTOCLOSE,0.25,na.rm=T),
+                 mean = mean(DAYTOCLOSE,na.rm=T),
+                 q75 = quantile(DAYTOCLOSE,0.75,na.rm=T),
+                 max = max(DAYTOCLOSE,na.rm=T)
+                 ) %>% rename(var = CREATEYR)
+
+ss = rbind(ss01,ss02,ss04,ss03)
+ss
+# ss %>% 
+#   kable() %>%
+#   kable_styling()
 
 ```
 
