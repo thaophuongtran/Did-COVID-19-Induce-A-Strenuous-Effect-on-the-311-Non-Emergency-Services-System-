@@ -657,63 +657,23 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b,reg_fe_c),
 test for difference in pre-period time trends
 
 ``` r
-summary( felm(data= dat_reg, DAYTOCLOSE~n_allcovid:relevel(factor(date),ref=12)|ZIP+factor(date) ))
+#plot coef for pretrend
+library(sjPlot)
 ```
 
-    ## 
-    ## Call:
-    ##    felm(formula = DAYTOCLOSE ~ n_allcovid:relevel(factor(date),      ref = 12) | ZIP + factor(date), data = dat_reg) 
-    ## 
-    ## Residuals:
-    ##    Min     1Q Median     3Q    Max 
-    ## -75.44 -30.58 -20.75   0.73 495.30 
-    ## 
-    ## Coefficients:
-    ##                                                        Estimate Std. Error
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-02-01 -7.408e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-03-01 -3.727e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-04-01 -4.170e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-05-01 -4.890e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-06-01 -5.289e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-07-01 -3.996e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-08-01 -4.899e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-09-01 -4.877e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-10-01 -1.378e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-11-01 -7.021e-03  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-12-01 -2.094e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-01-01 -3.637e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-03-01 -9.399e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-04-01  4.795e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-05-01 -3.913e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-06-01 -4.013e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-07-01 -2.192e-02  1.406e+04
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-08-01  1.316e-02  1.406e+04
-    ##                                                      t value Pr(>|t|)
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-02-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-03-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-04-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-05-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-06-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-07-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-08-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-09-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-10-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-11-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2019-12-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-01-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-03-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-04-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-05-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-06-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-07-01       0        1
-    ## n_allcovid:relevel(factor(date), ref = 12)2020-08-01       0        1
-    ## 
-    ## Residual standard error: 56.81 on 170129 degrees of freedom
-    ##   (1 observation deleted due to missingness)
-    ## Multiple R-squared(full model): 0.02648   Adjusted R-squared: 0.026 
-    ## Multiple R-squared(proj model): 0.0007212   Adjusted R-squared: 0.0002278 
-    ## F-statistic(full model): 55.1 on 84 and 170129 DF, p-value: < 2.2e-16 
-    ## F-statistic(proj model): 6.821 on 18 and 170129 DF, p-value: < 2.2e-16
+    ## Warning: package 'sjPlot' was built under R version 4.1.3
+
+``` r
+theme_set(theme_sjplot())
+plot_model(lm(data= dat_reg %>% mutate(date = as.factor(date)), DAYTOCLOSE~n_allcovid:relevel(date,ref=11)+n_allcovid+date),
+           vline.color = "black",
+           title="",
+           rm.terms = c("n_allcovid","date [2019-04-01]","date [2019-05-01]","date [2019-06-01]","date [2019-07-01]","date [2019-08-01]","date [2019-09-01]","date [2019-10-01]","date [2019-11-01]","date [2019-12-01]","date [2020-01-01]","date [2020-02-01]","date [2020-03-01]","date [2020-04-01]","date [2020-05-01]","date [2020-06-01]","date [2020-07-01]","date [2020-08-01]"),
+           axis.labels = rev(c("Mar 2019","Apr 2019","May 2019", "Jun 2019","Jul 2019","Aug 2019", "Sep 2019","Oct 2019","Nov 2019","Dec 2019","Feb 2020","Mar 2020","Apr 2020","May 2020", "Jun 2020","Jul 2020","Aug 2020"))
+           ) 
+```
+
+![](draft_v2_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
 Placebo test - time: move treatment time to before treatment, expect not
 significant

@@ -455,7 +455,16 @@ test for difference in pre-period time trends
 
 
 ```{r}
-summary( felm(data= dat_reg, DAYTOCLOSE~n_allcovid:relevel(factor(date),ref=12)|ZIP+factor(date) ))
+#plot coef for pretrend
+library(sjPlot)
+theme_set(theme_sjplot())
+plot_model(lm(data= dat_reg %>% mutate(date = as.factor(date)), DAYTOCLOSE~n_allcovid:relevel(date,ref=11)+n_allcovid+date),
+           vline.color = "black",
+           title="",
+           rm.terms = c("n_allcovid","date [2019-04-01]","date [2019-05-01]","date [2019-06-01]","date [2019-07-01]","date [2019-08-01]","date [2019-09-01]","date [2019-10-01]","date [2019-11-01]","date [2019-12-01]","date [2020-01-01]","date [2020-02-01]","date [2020-03-01]","date [2020-04-01]","date [2020-05-01]","date [2020-06-01]","date [2020-07-01]","date [2020-08-01]"),
+           axis.labels = rev(c("Mar 2019","Apr 2019","May 2019", "Jun 2019","Jul 2019","Aug 2019", "Sep 2019","Oct 2019","Nov 2019","Dec 2019","Feb 2020","Mar 2020","Apr 2020","May 2020", "Jun 2020","Jul 2020","Aug 2020"))
+           ) 
+
 ```
 
 Placebo test - time:
