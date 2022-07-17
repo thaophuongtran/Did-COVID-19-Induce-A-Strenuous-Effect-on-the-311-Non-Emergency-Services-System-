@@ -463,7 +463,7 @@ dat_reg = dat %>%
   filter(allcovid==0) %>%
   left_join(zip_covid_311) %>% 
   mutate(after = as.numeric(season == "COVID-warm"),
-         did = n_allcovid*after
+         did = n_allcovid*after,
          ) %>%  
   left_join(dat911, by=c("CREATEMO" = "month","CREATEYR" = "year")) %>%
   left_join(datgov, by=c("CREATEMO" = "month","CREATEYR" = "year"))
@@ -471,39 +471,7 @@ dat_reg = dat %>%
 
     ## Joining, by = "ZIP"
 
-``` r
-#ols 
-reg_ols = lm(data= dat_reg, DAYTOCLOSE~did + n_allcovid + after)
-#fe: rate + after
-reg_fe_a = (felm(data = dat_reg,DAYTOCLOSE~did|n_allcovid+after ))
-#fe: rate + date(year-month)
-reg_fe_b = (felm(data = dat_reg,DAYTOCLOSE~did|n_allcovid+factor(date) ))
-#fe: rate + date(year-month)
-reg_fe_c = (felm(data = dat_reg,DAYTOCLOSE~did|factor(NEIGH)+factor(date) ))
-
-#combine reg 
-screenreg(list(reg_ols, reg_fe_a, reg_fe_b,reg_fe_c), 
-          omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
-          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
-          custom.model.names = c("OLS", "FE period-zipcode", "FE date-zipcode","FE date-neighborhood"),
-          custom.coef.names = "DiD effect"
-          )
-```
-
-    ## 
-    ## ====================================================================================================
-    ##                             OLS             FE period-zipcode  FE date-zipcode  FE date-neighborhood
-    ## ----------------------------------------------------------------------------------------------------
-    ## DiD effect                       0.0159 **       0.0186 **          0.0166 **        0.0190 ***     
-    ##                                 (0.0058)        (0.0058)           (0.0057)         (0.0056)        
-    ## ----------------------------------------------------------------------------------------------------
-    ## Num. obs.                   170214          170214             170214           170214              
-    ## Num. groups: n_allcovid                         41                 41                               
-    ## Num. groups: after                               2                                                  
-    ## Num. groups: factor(date)                                          18               18              
-    ## Num. groups: factor(NEIGH)                                                         241              
-    ## ====================================================================================================
-    ## *** p < 0.001; ** p < 0.01; * p < 0.05
+Main results
 
 ``` r
 #fe: rate + after
@@ -542,6 +510,8 @@ screenreg(list(reg_fe_a, reg_fe_b,reg_fe_c,reg_fe_d),
     ## Num. groups: after               2               2                2                2         
     ## =============================================================================================
     ## *** p < 0.001; ** p < 0.01; * p < 0.05
+
+By Categories
 
 ``` r
 #fe: 911 + gov employees
@@ -646,132 +616,199 @@ screenreg(list(reg_fe_11, reg_fe_12,reg_fe_13,reg_fe_14,reg_fe_15),
     ## =========================================================================================================================================
     ## *** p < 0.001; ** p < 0.01; * p < 0.05
 
-Departments
+Robustness Check
+
+Fixed Effects
 
 ``` r
-dat %>%
-  filter(CATEGORY != "Data Not Available") %>%
-  filter(CREATEMO %in% 3:8) %>%
-  group_by(CATEGORY, DEPT) %>%
-  count() %>%
-  left_join(diff)%>%
-  ggplot(aes(x = reorder(CATEGORY,-diff_pchg), y = DEPT, fill = n))+
-  geom_tile(lwd=1.5)+
-  scale_x_discrete(guide = guide_axis(angle = 90))+
-  labs(
-    y = "Department",
-    x = "Category",
-    fill = "Request Volume",
-    col = "Selected Catgories"
-  )+
-  theme_bw()
+#ols 
+reg_ols = lm(data= dat_reg, DAYTOCLOSE~did + n_allcovid + after)
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg,DAYTOCLOSE~did|n_allcovid+after ))
+#fe: rate + date(year-month)
+reg_fe_b = (felm(data = dat_reg,DAYTOCLOSE~did|n_allcovid+factor(date) ))
+#fe: rate + date(year-month)
+reg_fe_c = (felm(data = dat_reg,DAYTOCLOSE~did|factor(NEIGH)+factor(date) ))
+
+#combine reg 
+screenreg(list(reg_ols, reg_fe_a, reg_fe_b,reg_fe_c), 
+          omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
+          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
+          custom.model.names = c("OLS", "FE period-zipcode", "FE date-zipcode","FE date-neighborhood"),
+          custom.coef.names = "DiD effect"
+          )
 ```
 
-    ## Joining, by = "CATEGORY"
+    ## 
+    ## ====================================================================================================
+    ##                             OLS             FE period-zipcode  FE date-zipcode  FE date-neighborhood
+    ## ----------------------------------------------------------------------------------------------------
+    ## DiD effect                       0.0159 **       0.0186 **          0.0166 **        0.0190 ***     
+    ##                                 (0.0058)        (0.0058)           (0.0057)         (0.0056)        
+    ## ----------------------------------------------------------------------------------------------------
+    ## Num. obs.                   170214          170214             170214           170214              
+    ## Num. groups: n_allcovid                         41                 41                               
+    ## Num. groups: after                               2                                                  
+    ## Num. groups: factor(date)                                          18               18              
+    ## Num. groups: factor(NEIGH)                                                         241              
+    ## ====================================================================================================
+    ## *** p < 0.001; ** p < 0.01; * p < 0.05
 
-![](draft_v2_files/figure-gfm/cate_dept-1.png)<!-- -->
+test for difference in pre-period time trends
 
 ``` r
+summary( felm(data= dat_reg, DAYTOCLOSE~n_allcovid:relevel(factor(date),ref=12)|ZIP+factor(date) ))
+```
+
+    ## 
+    ## Call:
+    ##    felm(formula = DAYTOCLOSE ~ n_allcovid:relevel(factor(date),      ref = 12) | ZIP + factor(date), data = dat_reg) 
+    ## 
+    ## Residuals:
+    ##    Min     1Q Median     3Q    Max 
+    ## -75.44 -30.58 -20.75   0.73 495.30 
+    ## 
+    ## Coefficients:
+    ##                                                        Estimate Std. Error
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-02-01 -7.408e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-03-01 -3.727e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-04-01 -4.170e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-05-01 -4.890e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-06-01 -5.289e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-07-01 -3.996e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-08-01 -4.899e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-09-01 -4.877e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-10-01 -1.378e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-11-01 -7.021e-03  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-12-01 -2.094e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-01-01 -3.637e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-03-01 -9.399e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-04-01  4.795e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-05-01 -3.913e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-06-01 -4.013e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-07-01 -2.192e-02  1.406e+04
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-08-01  1.316e-02  1.406e+04
+    ##                                                      t value Pr(>|t|)
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-02-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-03-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-04-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-05-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-06-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-07-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-08-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-09-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-10-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-11-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2019-12-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-01-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-03-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-04-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-05-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-06-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-07-01       0        1
+    ## n_allcovid:relevel(factor(date), ref = 12)2020-08-01       0        1
+    ## 
+    ## Residual standard error: 56.81 on 170129 degrees of freedom
+    ##   (1 observation deleted due to missingness)
+    ## Multiple R-squared(full model): 0.02648   Adjusted R-squared: 0.026 
+    ## Multiple R-squared(proj model): 0.0007212   Adjusted R-squared: 0.0002278 
+    ## F-statistic(full model): 55.1 on 84 and 170129 DF, p-value: < 2.2e-16 
+    ## F-statistic(proj model): 6.821 on 18 and 170129 DF, p-value: < 2.2e-16
+
+Placebo test - time: move treatment time to before treatment, expect not
+significant
+
+``` r
+#create time placebo
+dat_reg = dat_reg %>% 
+  mutate(
+         placebo_after = as.numeric(CREATEYR==2020),
+         placebo_did = n_allcovid*placebo_after,
+         )
+
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg,DAYTOCLOSE~placebo_did|n_allcovid+placebo_after ))
+#fe: 911
+reg_fe_b = (felm(data = dat_reg,DAYTOCLOSE~placebo_did+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+placebo_after ))
+#fe: gov employees
+reg_fe_c = (felm(data = dat_reg,DAYTOCLOSE~placebo_did+empgov|n_allcovid+placebo_after ))
 #fe: 911 + gov employees
-reg_fe_01 = (felm(data = dat_reg[dat_reg$DEPT=="Aviation",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_02 = (felm(data = dat_reg[dat_reg$DEPT=="City Managers Office",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_03 = (felm(data = dat_reg[dat_reg$DEPT=="City Planning and Development",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-#reg_fe_04 = (felm(data = dat_reg[dat_reg$DEPT=="Convention and Entertainment Center",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_05 = (felm(data = dat_reg[dat_reg$DEPT=="Finance",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_06 = (felm(data = dat_reg[dat_reg$DEPT=="Fire",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_07 = (felm(data = dat_reg[dat_reg$DEPT=="General Service",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_08 = (felm(data = dat_reg[dat_reg$DEPT=="Health",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-#reg_fe_09 = (felm(data = dat_reg[dat_reg$DEPT=="KCPD",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_10 = (felm(data = dat_reg[dat_reg$DEPT=="NHS",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-#reg_fe_11 = (felm(data = dat_reg[dat_reg$DEPT=="Northeast",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_12 = (felm(data = dat_reg[dat_reg$DEPT=="Northland",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_13 = (felm(data = dat_reg[dat_reg$DEPT=="Parks and Rec",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_14 = (felm(data = dat_reg[dat_reg$DEPT=="Public Works",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_15 = (felm(data = dat_reg[dat_reg$DEPT=="South",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-reg_fe_16 = (felm(data = dat_reg[dat_reg$DEPT=="Water Services",],DAYTOCLOSE~did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
-
+reg_fe_d = (felm(data = dat_reg,DAYTOCLOSE~placebo_did+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+placebo_after ))
 
 #combine reg 
-screenreg(list(reg_fe_01, reg_fe_02,reg_fe_03,reg_fe_05), 
+screenreg(list(reg_fe_a, reg_fe_b,reg_fe_c,reg_fe_d), 
           omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
           include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
-          custom.model.names = c("Aviation","City Managers Office","City Planning and Development","Finance"),
+          custom.model.names = c("(1)", "(2)","(3)","(4)"),
           custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees")
           )
 ```
 
     ## 
-    ## =====================================================================================================
-    ##                             Aviation   City Managers Office  City Planning and Development  Finance  
-    ## -----------------------------------------------------------------------------------------------------
-    ## DiD effect                   -0.8670     -0.0090                0.0220                        0.0760 
-    ##                              (2.0705)    (0.0313)              (0.0776)                      (0.1089)
-    ## 911 Vol Fire Department      -3.1367      2.4278 ***            3.9787 **                    -1.4267 
-    ##                             (13.2196)    (0.5015)              (1.4553)                      (1.7708)
-    ## 911 Vol Police Department    -0.0042     -0.0021                0.0096 **                     0.0006 
-    ##                              (0.0158)    (0.0011)              (0.0031)                      (0.0037)
-    ## Local Government Employees   -0.0005      0.0002               -0.0021 **                    -0.0001 
-    ##                              (0.0020)    (0.0003)              (0.0007)                      (0.0008)
-    ## -----------------------------------------------------------------------------------------------------
-    ## Num. obs.                    13        2925                  1684                           246      
-    ## Num. groups: n_allcovid       3          41                    40                            38      
-    ## Num. groups: after            2           2                     2                             2      
-    ## =====================================================================================================
+    ## ===========================================================================================
+    ##                             (1)           (2)              (3)              (4)            
+    ## -------------------------------------------------------------------------------------------
+    ## DiD effect                       0.0051        0.0065           0.0049           0.0065    
+    ##                                 (0.0054)      (0.0054)         (0.0054)         (0.0054)   
+    ## 911 Vol Fire Department                        0.0038 ***                        0.0036 ***
+    ##                                               (0.0002)                          (0.0002)   
+    ## 911 Vol Police Department                     -0.0005 ***                       -0.0005 ***
+    ##                                               (0.0000)                          (0.0000)   
+    ## Local Government Employees                                      0.4958 ***       0.1771 *  
+    ##                                                                (0.0665)         (0.0799)   
+    ## -------------------------------------------------------------------------------------------
+    ## Num. obs.                   170214        170214           170214           170214         
+    ## Num. groups: n_allcovid         41            41               41               41         
+    ## Num. groups: placebo_after       2             2                2                2         
+    ## ===========================================================================================
     ## *** p < 0.001; ** p < 0.01; * p < 0.05
 
+Placebo test - treatment: move treatment effect randomly, expect not
+significant
+
 ``` r
+#create time placebo
+set.seed(0)
+dat_reg = dat_reg %>% 
+  mutate(
+         placebo_after = as.numeric(CREATEYR==2020),
+         placebo_allcovid = sample(n_allcovid,size = nrow(dat_reg)),
+         placebo_did2 = placebo_allcovid*after,
+         )
+
+#fe: rate + after
+reg_fe_a = (felm(data = dat_reg,DAYTOCLOSE~placebo_did2|n_allcovid+after ))
+#fe: 911
+reg_fe_b = (felm(data = dat_reg,DAYTOCLOSE~placebo_did2+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+#fe: gov employees
+reg_fe_c = (felm(data = dat_reg,DAYTOCLOSE~placebo_did2+empgov|n_allcovid+after ))
+#fe: 911 + gov employees
+reg_fe_d = (felm(data = dat_reg,DAYTOCLOSE~placebo_did2+empgov+kcmo_fire_vol+kcmo_pd_vol|n_allcovid+after ))
+
 #combine reg 
-screenreg(list(reg_fe_06, reg_fe_07,reg_fe_08,reg_fe_10), 
+screenreg(list(reg_fe_a, reg_fe_b,reg_fe_c,reg_fe_d), 
           omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
           include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
-          custom.model.names = c("Fire","General Service","Health","NHS"),
+          custom.model.names = c("(1)", "(2)","(3)","(4)"),
           custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees")
           )
 ```
 
     ## 
-    ## ====================================================================================
-    ##                             Fire      General Service  Health         NHS           
-    ## ------------------------------------------------------------------------------------
-    ## DiD effect                   0.1092   -0.2692            -0.0323         -0.0034    
-    ##                             (0.2278)  (0.8760)           (0.0189)        (0.0098)   
-    ## 911 Vol Fire Department     -4.3998    8.8233             0.9727 **       0.9435 ***
-    ##                             (3.5540)  (6.9716)           (0.3098)        (0.1499)   
-    ## 911 Vol Police Department    0.0083   -0.0071             0.0028 ***      0.0024 ***
-    ##                             (0.0085)  (0.0156)           (0.0007)        (0.0003)   
-    ## Local Government Employees  -0.0016    0.0009            -0.0009 ***     -0.0001    
-    ##                             (0.0019)  (0.0035)           (0.0002)        (0.0001)   
-    ## ------------------------------------------------------------------------------------
-    ## Num. obs.                   60        65               6347           87980         
-    ## Num. groups: n_allcovid     25        18                 41              41         
-    ## Num. groups: after           2         2                  2               2         
-    ## ====================================================================================
-    ## *** p < 0.001; ** p < 0.01; * p < 0.05
-
-``` r
-#combine reg 
-screenreg(list(reg_fe_12,reg_fe_13,reg_fe_14,reg_fe_15,reg_fe_16), 
-          omit.coef = "after|n_allcovid|Intercept|NEIGH", digits=4, 
-          include.rsquared = FALSE, include.adjrs = FALSE, include.rmse = FALSE,
-          custom.model.names = c("Northland","Parks and Rec","Public Works","South","Water Services"),
-          custom.coef.names = c("DiD effect","911 Vol Fire Department","911 Vol Police Department","Local Government Employees"))
-```
-
-    ## 
-    ## ======================================================================================================
-    ##                             Northland      Parks and Rec  Public Works    South         Water Services
-    ## ------------------------------------------------------------------------------------------------------
-    ## DiD effect                     0.0627        -0.0110         -0.0061       -0.0334          0.1357 ***
-    ##                               (0.0519)       (0.0353)        (0.0075)      (0.0717)        (0.0150)   
-    ## 911 Vol Fire Department        2.5073 ***     2.3042 ***      0.2060       -1.3027          0.1758    
-    ##                               (0.3382)       (0.5427)        (0.1336)      (2.0369)        (0.3087)   
-    ## 911 Vol Police Department      0.0153 ***     0.0066 ***      0.0047 ***    0.0174 ***     -0.0003    
-    ##                               (0.0009)       (0.0012)        (0.0003)      (0.0044)        (0.0007)   
-    ## Local Government Employees    -0.0032 ***    -0.0012 ***     -0.0008 ***   -0.0031 **       0.0006 ***
-    ##                               (0.0002)       (0.0003)        (0.0001)      (0.0011)        (0.0002)   
-    ## ------------------------------------------------------------------------------------------------------
-    ## Num. obs.                   5949           2906           48717           510           12754         
-    ## Num. groups: n_allcovid       28             40              41            13              41         
-    ## Num. groups: after             2              2               2             2               2         
-    ## ======================================================================================================
+    ## ===========================================================================================
+    ##                             (1)           (2)              (3)              (4)            
+    ## -------------------------------------------------------------------------------------------
+    ## DiD effect                      -0.0021       -0.0023          -0.0024          -0.0023    
+    ##                                 (0.0048)      (0.0048)         (0.0048)         (0.0048)   
+    ## 911 Vol Fire Department                        0.0039 ***                        0.0030 ***
+    ##                                               (0.0002)                          (0.0002)   
+    ## 911 Vol Police Department                     -0.0006 ***                       -0.0003 ***
+    ##                                               (0.0000)                          (0.0000)   
+    ## Local Government Employees                                      1.3753 ***       0.9844 ***
+    ##                                                                (0.0817)         (0.0948)   
+    ## -------------------------------------------------------------------------------------------
+    ## Num. obs.                   170213        170213           170213           170213         
+    ## Num. groups: n_allcovid         41            41               41               41         
+    ## Num. groups: after               2             2                2                2         
+    ## ===========================================================================================
     ## *** p < 0.001; ** p < 0.01; * p < 0.05
