@@ -663,6 +663,8 @@ library(sjPlot)
 
     ## Warning: package 'sjPlot' was built under R version 4.1.3
 
+    ## Learn more about sjPlot with 'browseVignettes("sjPlot")'.
+
 ``` r
 theme_set(theme_sjplot())
 plot_model(lm(data= dat_reg %>% mutate(date = as.factor(date)), DAYTOCLOSE~n_allcovid:relevel(date,ref=11)+n_allcovid+date),
