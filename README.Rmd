@@ -3,9 +3,11 @@ title: "Did COVID-19 Induce A Strenuous Effect on the 311 Non-Emergency Services
 output: github_document
 ---
 
-```{r library, warning=FALSE, message = FALSE}
+
+```{r setup, warning=FALSE, message = FALSE, include = FALSE}
 #load library
 library(dplyr)
+options(dplyr.summrise.info = FALSE)
 library(reshape2)
 library(openxlsx)
 library(car)
@@ -21,21 +23,37 @@ library(lfe)
 #library(devtools)
 #install_github('arilamstein/choroplethrZip@v1.3.0')
 library(choroplethrZip)
+library(mapproj)
 
 #load 311 data 
-load("kcmo2019_2020.rdata")
+load("data/kcmo2019_2020.rdata")
 
 #load 911 data
-dat911 = read.csv("kcmo 911 volume - data.csv")
+dat911 = read.csv("data/kcmo 911 volume - data.csv")
  
 #covid cases by zipcode as of january 15, 2022
-zip_covid = read.csv("COVID-19_Data_by_ZIP_Code.csv") 
+zip_covid = read.csv("data/COVID-19_Data_by_ZIP_Code.csv") 
 zip_covid = zip_covid %>% dplyr::select(ZipCode,Cases,Total.Residents.Tested) %>% mutate(ZIP = ZipCode,rate = Cases/Total.Residents.Tested ) %>% dplyr::select(ZIP, rate)
 
 ```
 
 
-```{r clean, warning=FALSE, message = FALSE}
+
+**Abstract**
+
+In this paper we examine whether COVID-19 imposed a crowd out effect on the 311
+non-emergency services using data from Kansas City, Missouri during the early stage of
+the pandemic. Using description text data, we identify covid-related requests and use
+them as a proxy for the strains put on the 311 systems by the health crisis. We find
+robust evidence through our difference in difference approach that zip code with an
+additional covid-related request would experience half an hour delay the response time
+for non-covid related requests. In addition, the strains on the 311 system mainly affected
+three categories: “Mowing / Weeds”, “Trash / Recycling”, and “Animals & Pets”.
+
+Keywords: crisis response, 311, crowd out effect, COVID-19, text mining
+
+
+```{r clean, warning=FALSE, message = FALSE, echo=FALSE}
 # create year+month var
 dat$date = dat$CREATEYR*100 +dat$CREATEMO
 
@@ -78,11 +96,11 @@ dat = dat %>%
 ```
 
 
-Aggregate Trends
+### Aggregate Trends
 
 Call Volumes
 
-```{r vol, warning=FALSE, message = FALSE,fig.width=8}
+```{r vol, warning=FALSE, message = FALSE,fig.width=8, echo=FALSE}
 dat %>% 
   group_by(date,CREATEYR,CREATEMO,allcovid) %>%
   count() %>% 
@@ -109,7 +127,7 @@ Call Volumes by Request Types
 
 
 
-```{r vol_cat, warning=FALSE, message = FALSE,fig.width=15,fig.height=8}
+```{r vol_cat, warning=FALSE, message = FALSE,fig.width=15,fig.height=8, echo=FALSE}
 # changes in request volume after covid by categories 
 diff = dat %>% 
   filter(CATEGORY != "Data Not Available") %>%
@@ -142,7 +160,8 @@ dat %>%
        )+
   theme_bw()
 ```
-```{r rep_cat, warning=FALSE, message = FALSE,fig.height = 4,fig.width=6}
+
+```{r rep_cat, warning=FALSE, message = FALSE,fig.height = 4,fig.width=6, echo=FALSE}
 # plot response time by categories
 dat %>% 
   filter(CATEGORY != "Data Not Available") %>%
@@ -163,9 +182,9 @@ dat %>%
   theme_bw()
 ```
 
-Zip Code Variation 
+### Zip Code Variation 
 
-```{r zipdata}
+```{r zipdata, echo=FALSE}
 # yoy change in days to close
 zip_dtc = dat %>% 
   #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
@@ -197,7 +216,7 @@ zip = zip_dtc %>% left_join(zip_n) %>%
   
 ```
 
-```{r zip_choropleth}
+```{r zip_choropleth, echo=FALSE}
 
 #list of zip to zoom in
 zip_kcmo = unique(as.character(zip_covid_311$ZIP))
@@ -211,7 +230,7 @@ zip_choropleth(zip_covid_311 %>% mutate(region = as.character(ZIP), value = n_al
 
 ```
 
-```{r}
+```{r, echo=FALSE}
 #scatterplot
 dat %>% 
   #filter(CATEGORY %in% c("Public Safety","Public Health","Parks & Recreation")) %>%
@@ -241,9 +260,9 @@ summary(lm(daytoclose_diff~n_allcovid, data = dat %>%
   
 ```
 
-pretrends
+### Pretrends
 
-```{r}
+```{r, echo=FALSE}
 rank10 = zip_covid_311 %>% 
   mutate(group = cut(zip_covid_311$n_allcovid,breaks = quantile(zip_covid_311$n_allcovid,seq(0,1,0.2)),labels = FALSE,include.lowest = TRUE)) 
 
@@ -256,18 +275,10 @@ dat %>% left_join(rank10 ) %>% filter(group %in%c(1,5)) %>%
 
 ```
 
+### Delay in response time for non-covid related requests
 
 
-
-
-
-
-Delay in response time for non-covid related requests
-
-
-
-
-```{r zip_dtc, fig.height = 6,fig.width=8}
+```{r zip_dtc, fig.height = 6,fig.width=8, echo=FALSE}
 #scatterplot
 zip %>%
   filter(CATEGORY != "Data Not Available") %>%
@@ -279,7 +290,10 @@ zip %>%
   theme(legend.position = "none")
 ```
 
-```{r}
+
+### Regression Output
+
+```{r, echo=FALSE}
 
 # create data for request level reg
 dat_reg = dat %>% 
@@ -294,7 +308,7 @@ dat_reg = dat %>%
 ```
 
 
-```{r tab1}
+```{r tab1, echo=FALSE}
 #ols 
 reg_ols = (lm(data= dat_reg, DAYTOCLOSE~did + rate + after))
 #fe: rate + after
@@ -313,7 +327,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 ```
 
 
-```{r tab2}
+```{r tab2, echo=FALSE}
 #ols 
 reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Public Health",], DAYTOCLOSE~did + rate + after))
 #fe: rate + after
@@ -334,7 +348,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 
 ```
 
-```{r tab3}
+```{r tab3, echo=FALSE}
 #ols 
 reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Public Safety",], DAYTOCLOSE~did + rate + after))
 #fe: rate + after
@@ -351,7 +365,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
           )
 
 ```
-```{r tab4}
+```{r tab4, echo=FALSE}
 #ols 
 reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Parks & Recreation",], DAYTOCLOSE~did + rate + after))
 #fe: rate + after
@@ -370,7 +384,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 ```
 
 
-```{r tab1a}
+```{r tab1a, echo=FALSE}
 #ols 
 reg_ols = (lm(data= dat_reg, DAYTOCLOSE~did2 + n_allcovid + after))
 #fe: rate + after
@@ -389,7 +403,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 ```
 
 
-```{r tab2a}
+```{r tab2a, echo=FALSE}
 #ols 
 reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Public Health",], DAYTOCLOSE~did2 + n_allcovid + after))
 #fe: rate + after
@@ -406,7 +420,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
           )
 
 ```
-```{r tab3a}
+```{r tab3a, echo=FALSE}
 #ols 
 reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Public Safety",], DAYTOCLOSE~did2 + n_allcovid + after))
 #fe: rate + after
@@ -423,7 +437,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
           )
 
 ```
-```{r tab4a}
+```{r tab4a, echo=FALSE}
 #ols 
 reg_ols = (lm(data= dat_reg[dat_reg$CATEGORY == "Parks & Recreation",], DAYTOCLOSE~did2 + n_allcovid + after))
 #fe: rate + after
@@ -441,7 +455,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 
 ```
 
-```{r tab5}
+```{r tab5, echo=FALSE}
 zip_reg = dat %>% 
   mutate(after = as.numeric(season == "COVID-warm")) %>% 
   filter(allcovid==0) %>% 
@@ -471,7 +485,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 
 ```
 
-```{r tab6}
+```{r tab6, echo=FALSE}
 zip_reg = dat %>% 
   mutate(after = as.numeric(season == "COVID-warm")) %>% 
   filter(allcovid==0) %>% 
@@ -500,7 +514,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
           )
 
 ```
-```{r tab7}
+```{r tab7, echo=FALSE}
 zip_reg = dat %>% 
   mutate(after = as.numeric(season == "COVID-warm")) %>% 
   filter(allcovid==0) %>% 
@@ -530,7 +544,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 
 ```
 
-```{r tab8}
+```{r tab8, echo=FALSE}
 zip_reg = dat %>% 
   mutate(after = as.numeric(season == "COVID-warm")) %>% 
   filter(allcovid==0) %>% 
@@ -560,7 +574,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 
 ```
 
-```{r tab5a}
+```{r tab5a, echo=FALSE}
 zip_reg = dat %>% 
   mutate(after = as.numeric(season == "COVID-warm")) %>% 
   filter(allcovid==0) %>% 
@@ -590,7 +604,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 
 ```
 
-```{r tab6a}
+```{r tab6a, echo=FALSE}
 zip_reg = dat %>% 
   mutate(after = as.numeric(season == "COVID-warm")) %>% 
   filter(allcovid==0) %>% 
@@ -620,7 +634,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 
 ```
 
-```{r tab7a}
+```{r tab7a, echo=FALSE}
 zip_reg = dat %>% 
   mutate(after = as.numeric(season == "COVID-warm")) %>% 
   filter(allcovid==0) %>% 
@@ -650,7 +664,7 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 
 ```
 
-```{r tab8a}
+```{r tab8a, echo=FALSE}
 zip_reg = dat %>% 
   mutate(after = as.numeric(season == "COVID-warm")) %>% 
   filter(allcovid==0) %>% 
@@ -681,18 +695,11 @@ screenreg(list(reg_ols, reg_fe_a, reg_fe_b),
 ```
 
 
-
-
-
-
-
-
-
-Discussion 
+### Discussion 
 
 Categories vs Departments 
 
-```{r cate_dept, fig.height=8,fig.width=8}
+```{r cate_dept, fig.height=8,fig.width=8, echo=FALSE}
 dat %>%
   filter(CATEGORY != "Data Not Available") %>%
   filter(CREATEMO %in% 3:8) %>%
@@ -714,7 +721,8 @@ dat %>%
 ```
 
 911 trends 
-```{r vol911}
+
+```{r vol911, echo=FALSE}
 
 dat911 %>% 
   filter(month %in% 3:8) %>%
@@ -737,7 +745,7 @@ dat911 %>%
 ```
 
 
-```{r ringtime911}
+```{r ringtime911, echo=FALSE}
 
 dat911 %>% 
   filter(month %in% 3:8) %>%
